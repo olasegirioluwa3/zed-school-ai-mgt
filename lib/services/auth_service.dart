@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import '../models/zed/zed_login_request.dart';
@@ -36,14 +37,14 @@ class AuthServiceImpl implements AuthService {
       password: password,
     );
 
-    print('=== Login Request ===');
-    print('URL: $url');
-    print('Email: $email');
-    print('====================');
+    debugPrint('=== Login Request ===');
+    debugPrint('URL: $url');
+    debugPrint('Email: $email');
+    debugPrint('====================');
 
     try {
-      print('Sending POST request to: $url');
-      print('Request body: ${jsonEncode(request.toJson())}');
+      debugPrint('Sending POST request to: $url');
+      debugPrint('Request body: ${jsonEncode(request.toJson())}');
       
       final response = await _client
           .post(
@@ -57,16 +58,16 @@ class AuthServiceImpl implements AuthService {
             const Duration(seconds: ApiConfig.requestTimeout),
           );
 
-      print('Response status code: ${response.statusCode}');
-      print('Response body: ${response.body}');
+      debugPrint('Response status code: ${response.statusCode}');
+      debugPrint('Response body: ${response.body}');
 
       final responseData = jsonDecode(response.body) as Map<String, dynamic>;
 
       // Log the full response for debugging
-      print('=== Login Response ===');
-      print('Status: ${responseData['status']}');
-      print('Full Response: ${jsonEncode(responseData)}');
-      print('====================');
+      debugPrint('=== Login Response ===');
+      debugPrint('Status: ${responseData['status']}');
+      debugPrint('Full Response: ${jsonEncode(responseData)}');
+      debugPrint('====================');
 
       if (responseData['status'] != 'success') {
         throw ZedApiException(
@@ -84,15 +85,15 @@ class AuthServiceImpl implements AuthService {
 
       return loginResponse;
     } on http.ClientException catch (e) {
-      print('Network error details: ${e.message}');
-      print('Error type: ${e.runtimeType}');
+      debugPrint('Network error details: ${e.message}');
+      debugPrint('Error type: ${e.runtimeType}');
       if (e.message.contains('Failed host lookup')) {
-        print('DNS resolution failed - check internet connection');
+        debugPrint('DNS resolution failed - check internet connection');
       } else if (e.message.contains('Connection refused')) {
-        print('Server refused connection - server may be down');
+        debugPrint('Server refused connection - server may be down');
       } else if (e.message.contains('Failed to fetch')) {
-        print('Fetch failed - possible CORS issue (on web) or network issue');
-        print('Try accessing the URL directly in a browser: $url');
+        debugPrint('Fetch failed - possible CORS issue (on web) or network issue');
+        debugPrint('Try accessing the URL directly in a browser: $url');
       }
       throw ZedApiException('Network error: ${e.message}');
     } catch (e) {
@@ -101,6 +102,7 @@ class AuthServiceImpl implements AuthService {
     }
   }
 
+  @override
   void dispose() {
     _client.close();
   }

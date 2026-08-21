@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
@@ -83,10 +84,10 @@ class ZedAiServiceImpl implements ZedAiService {
       final responseData = jsonDecode(response.body) as Map<String, dynamic>;
 
       // Log the full response for debugging
-      print('=== AI Response ===');
-      print('Status: ${responseData['status']}');
-      print('Full Response: ${jsonEncode(responseData)}');
-      print('==================');
+      debugPrint('=== AI Response ===');
+      debugPrint('Status: ${responseData['status']}');
+      debugPrint('Full Response: ${jsonEncode(responseData)}');
+      debugPrint('==================');
 
       // Store the response structure to shared preferences
       await _storeResponseStructure(responseData);
@@ -113,9 +114,9 @@ class ZedAiServiceImpl implements ZedAiService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('last_ai_response', jsonEncode(response));
-      print('Response structure saved to shared preferences');
+      debugPrint('Response structure saved to shared preferences');
     } catch (e) {
-      print('Failed to save response structure: ${e.toString()}');
+      debugPrint('Failed to save response structure: ${e.toString()}');
     }
   }
 

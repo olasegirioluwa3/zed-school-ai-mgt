@@ -16,9 +16,10 @@ class _SplashScreenState extends State<SplashScreen> {
   static const Color gradientEnd = Color(0xFFFFB36F);
   static const double cornerRadius = 40.0;
   static const Color logoColor = Color(0xFFFF8C42);
-  static const double iconSize = 60.0;
   static const double fontSize = 48.0;
   static const double spacing = 12.0;
+
+  Timer? _splashTimer;
 
   @override
   void initState() {
@@ -27,13 +28,19 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   void _navigateToLogin() {
-    Timer(const Duration(seconds: 2), () {
+    _splashTimer = Timer(const Duration(seconds: 2), () {
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const LoginScreen()),
         );
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _splashTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -70,7 +77,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Widget _buildLogoIcon() {
     return Image.asset(
-      'asstes/zedai.png',
+      'assets/zedai.png',
       width: 60,
       height: 60,
     );

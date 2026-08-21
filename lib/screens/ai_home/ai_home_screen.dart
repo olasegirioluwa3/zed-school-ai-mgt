@@ -3,8 +3,6 @@ import '../../models/chat_message.dart';
 import '../../models/chat_conversation.dart';
 import '../../models/school.dart';
 import '../../models/zed/zed_chat_message.dart';
-import '../../models/zed/zed_conversation.dart';
-import '../../models/zed/zed_conversation_details.dart';
 import '../../models/zed/zed_api_exception.dart';
 import '../../services/school_ai_service.dart';
 import '../../services/school_service.dart';
@@ -16,7 +14,6 @@ import '../../widgets/chat/user_message.dart';
 import '../../widgets/chat/ai_message.dart';
 import '../../widgets/chat/ai_typing_indicator.dart';
 import '../../widgets/chat/chat_input.dart';
-import '../../widgets/chat/ai_action_card.dart';
 import '../../widgets/chat/suggestion_chip.dart';
 
 class AiHomeScreen extends StatefulWidget {
@@ -28,35 +25,24 @@ class AiHomeScreen extends StatefulWidget {
 
 class _AiHomeScreenState extends State<AiHomeScreen> {
   // Visual constants for easy adjustment
-  static const Color backgroundColor = Color(0xFFF2F2F2);
-  static const Color orangeColor = Color(0xFFFF8C42);
   static const Color whiteColor = Colors.white;
-  static const Color textColor = Colors.black;
-  static const Color grayBorderColor = Color(0xFFE0E0E0);
-  static const Color inputBackgroundColor = Color(0xFFF5F5F5);
-  static const Color userMessageColor = Color(0xFFFF8C42);
-  static const Color aiMessageColor = Colors.white;
-  static const double cornerRadius = 40.0;
   static const double menuButtonSize = 46.0;
-  static const double schoolSelectorRadius = 29.0;
-  static const double sendButtonSize = 62.0;
-  static const double inputHeight = 60.0;
-  static const double suggestionButtonHeight = 45.0;
   static const double horizontalPadding = 16.0;
 
   final TextEditingController _questionController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final SchoolAiService _aiService = MockSchoolAiService(); // Kept for fallback
+  // ignore: unused_field  — kept as fallback implementation reference
+  final SchoolAiService _aiService = MockSchoolAiService();
   final ZedAiService _zedAiService = ZedAiServiceImpl();
   final SchoolService _schoolService = SchoolService();
-  
+
   List<ChatMessage> _messages = [];
   List<ChatConversation> _conversations = [];
   bool _isLoading = false;
   School? _currentSchool;
   String _currentConversationId = '';
-  String _userName = 'School Admin';
-  String _userRole = 'Administrator';
+  final String _userName = 'School Admin';
+  final String _userRole = 'Administrator';
 
   @override
   void initState() {
@@ -65,23 +51,23 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
   }
 
   Future<void> _initializeData() async {
-    print('=== Initializing Data ===');
-    print('Auth Token: ${ApiConfig.authToken.isNotEmpty ? "Present" : "Empty"}');
-    
+    debugPrint('=== Initializing Data ===');
+    debugPrint('Auth Token: ${ApiConfig.authToken.isNotEmpty ? "Present" : "Empty"}');
+
     try {
       if (ApiConfig.authToken.isNotEmpty) {
-        print('Fetching schools with auth token...');
+        debugPrint('Fetching schools with auth token...');
         await _schoolService.fetchSchools();
         setState(() {
           _currentSchool = _schoolService.getSelectedSchool();
         });
-        print('Schools loaded successfully');
+        debugPrint('Schools loaded successfully');
       } else {
-        print('Skipping schools fetch - no auth token');
+        debugPrint('Skipping schools fetch - no auth token');
       }
       _loadConversations();
     } catch (e) {
-      print('Failed to load schools: ${e.toString()}');
+      debugPrint('Failed to load schools: ${e.toString()}');
       // Continue with empty state if schools fail to load
     }
   }
@@ -112,9 +98,9 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
       });
     } on ZedApiException catch (e) {
       // Silently fail on initial load, user can retry later
-      print('Failed to load conversations: ${e.message}');
+      debugPrint('Failed to load conversations: ${e.message}');
     } catch (e) {
-      print('Failed to load conversations: ${e.toString()}');
+      debugPrint('Failed to load conversations: ${e.toString()}');
     }
   }
 
@@ -192,7 +178,7 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
           Row(
             children: [
               Image.asset(
-                'asstes/zedai.png',
+                'assets/zedai.png',
                 width: 60,
                 height: 60,
               ),
@@ -287,7 +273,7 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
+              color: Colors.grey.withValues(alpha: 0.1),
               spreadRadius: 1,
               blurRadius: 3,
               offset: const Offset(0, 1),
@@ -638,21 +624,7 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
     // The API handles conversation creation and updates
   }
 
-  String _generateConversationTitle() {
-    if (_messages.isEmpty) return 'New conversation';
 
-    // Use first user message as title
-    final firstUserMessage = _messages.firstWhere(
-      (m) => m.role == MessageRole.user,
-      orElse: () => _messages.first,
-    );
-
-    final content = firstUserMessage.content;
-    if (content.length > 30) {
-      return '${content.substring(0, 30)}...';
-    }
-    return content;
-  }
 }
 
 class _Dot extends StatelessWidget {

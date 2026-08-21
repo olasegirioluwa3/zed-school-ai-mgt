@@ -16,7 +16,6 @@ class _LoginScreenState extends State<LoginScreen> {
   static const Color gradientEnd = Color(0xFFFFB36F);
   static const double cornerRadius = 40.0;
   static const Color logoColor = Color(0xFFFF8C42);
-  static const double iconSize = 60.0;
   static const double fontSize = 48.0;
   static const double spacing = 12.0;
   static const Color inputBackgroundColor = Color(0xFFF5F5F5);
@@ -89,7 +88,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _buildLogoIcon() {
     return Image.asset(
-      'asstes/zedai.png',
+      'assets/zedai.png',
       width: 60,
       height: 60,
     );
@@ -242,6 +241,7 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() {
         _isLoading = false;
       });
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message)),
       );
@@ -249,6 +249,7 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() {
         _isLoading = false;
       });
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Login failed. Please try again.')),
       );

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/school.dart';
 import '../models/zed/zed_school.dart';
@@ -50,10 +51,10 @@ class SchoolService {
         headers['Authorization'] = 'Bearer ${ApiConfig.authToken}';
       }
       
-      print('=== Schools Request ===');
-      print('URL: $url');
-      print('Headers: $headers');
-      print('======================');
+      debugPrint('=== Schools Request ===');
+      debugPrint('URL: $url');
+      debugPrint('Headers: $headers');
+      debugPrint('======================');
       
       final response = await http.get(
         url,
@@ -65,10 +66,10 @@ class SchoolService {
       final responseData = jsonDecode(response.body) as Map<String, dynamic>;
 
       // Log the full response for debugging
-      print('=== Schools Response ===');
-      print('Status: ${responseData['status']}');
-      print('Full Response: ${jsonEncode(responseData)}');
-      print('======================');
+      debugPrint('=== Schools Response ===');
+      debugPrint('Status: ${responseData['status']}');
+      debugPrint('Full Response: ${jsonEncode(responseData)}');
+      debugPrint('======================');
 
       if (responseData['status'] != 'success') {
         throw ZedApiException(
@@ -96,7 +97,7 @@ class SchoolService {
         _selectedSchoolId = _cachedSchools.first.id;
       }
     } on http.ClientException catch (e) {
-      print('Network error details: ${e.message}');
+      debugPrint('Network error details: ${e.message}');
       throw ZedApiException('Network error: ${e.message}');
     } catch (e) {
       if (e is ZedApiException) rethrow;
