@@ -18,26 +18,24 @@ class ZedChatMessage {
 
   factory ZedChatMessage.fromJson(Map<String, dynamic> json) {
     return ZedChatMessage(
-      id: json['id'] as String,
-      role: _parseRole(json['role'] as String),
-      content: json['content'] as String,
-      timestamp: _parseDateTime(json['timestamp'] as String?),
+      id: (json['id'] ?? json['_id'] ?? '')?.toString() ?? '',
+      role: _parseRole((json['role'] ?? json['sender'])?.toString()),
+      content: (json['content'] ?? json['message'] ?? json['text'] ?? json['reply'] ?? '')?.toString() ?? '',
+      timestamp: _parseDateTime((json['timestamp'] ?? json['createdAt'] ?? json['created_at'])?.toString()),
     );
   }
 
-  static ZedMessageRole _parseRole(String role) {
-    switch (role.toLowerCase()) {
-      case 'user':
-        return ZedMessageRole.user;
-      case 'assistant':
-        return ZedMessageRole.assistant;
-      default:
-        throw ArgumentError('Unknown role: $role');
+  static ZedMessageRole _parseRole(String? role) {
+    if (role == null) return ZedMessageRole.assistant;
+    final r = role.toLowerCase();
+    if (r == 'user' || r == 'student' || r == 'parent' || r == 'teacher' || r == 'admin') {
+      return ZedMessageRole.user;
     }
+    return ZedMessageRole.assistant;
   }
 
   static DateTime _parseDateTime(String? dateString) {
-    if (dateString == null) {
+    if (dateString == null || dateString.isEmpty) {
       return DateTime.now();
     }
     try {
@@ -47,3 +45,4 @@ class ZedChatMessage {
     }
   }
 }
+

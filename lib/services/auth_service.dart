@@ -8,7 +8,7 @@ import '../models/zed/zed_api_exception.dart';
 
 abstract class AuthService {
   Future<ZedLoginResponse> login({
-    required String email,
+    required String contact,
     required String password,
   });
   
@@ -27,19 +27,19 @@ class AuthServiceImpl implements AuthService {
 
   @override
   Future<ZedLoginResponse> login({
-    required String email,
+    required String contact,
     required String password,
   }) async {
     final url = Uri.parse('$_baseUrl${ApiConfig.loginEndpoint}');
     
     final request = ZedLoginRequest(
-      email: email,
+      contact: contact,
       password: password,
     );
 
     debugPrint('=== Login Request ===');
     debugPrint('URL: $url');
-    debugPrint('Email: $email');
+    debugPrint('Contact: $contact');
     debugPrint('====================');
 
     try {
@@ -65,11 +65,25 @@ class AuthServiceImpl implements AuthService {
 
       // Log the full response for debugging
       debugPrint('=== Login Response ===');
-      debugPrint('Status: ${responseData['status']}');
       debugPrint('Full Response: ${jsonEncode(responseData)}');
       debugPrint('====================');
 
-      if (responseData['status'] != 'success') {
+      // Check HTTP status code
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw ZedApiException(
+          responseData['message'] as String? ??
+              responseData['error'] as String? ??
+              'Login failed with status ${response.statusCode}',
+          errorDetails: responseData['errorDetails'] as String?,
+          statusCode: response.statusCode,
+        );
+      }
+
+      // Check if status is explicitly failure
+      if (responseData.containsKey('status') &&
+          responseData['status'] != 'success' &&
+          responseData['status'] != 200 &&
+          responseData['status'] != true) {
         throw ZedApiException(
           responseData['message'] as String? ?? 'Login failed',
           errorDetails: responseData['errorDetails'] as String?,
@@ -77,11 +91,18 @@ class AuthServiceImpl implements AuthService {
         );
       }
 
-      final data = responseData['data'] as Map<String, dynamic>;
-      final loginResponse = ZedLoginResponse.fromJson(data);
+      final loginResponse = ZedLoginResponse.fromJson(responseData);
 
-      // Store the auth token globally
+      if (loginResponse.token.isEmpty) {
+        throw ZedApiException(
+          responseData['message'] as String? ?? 'No authentication token received in response',
+          statusCode: response.statusCode,
+        );
+      }
+
+      // Store the auth token and user globally
       ApiConfig.setAuthToken(loginResponse.token);
+      ApiConfig.setCurrentUser(loginResponse.user);
 
       return loginResponse;
     } on http.ClientException catch (e) {

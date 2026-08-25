@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/chat_conversation.dart';
+import 'ad_banner_widget.dart';
 
 class AiNavigationDrawer extends StatelessWidget {
   final List<ChatConversation> conversations;
@@ -52,7 +53,12 @@ class AiNavigationDrawer extends StatelessWidget {
           const SizedBox(height: 16),
           // Search chats
           _buildSearchChats(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
+          // Banner ad below search button
+          const AdBannerWidget(
+            margin: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          ),
+          const SizedBox(height: 8),
           // Chat history
           Expanded(
             child: _buildChatHistory(),

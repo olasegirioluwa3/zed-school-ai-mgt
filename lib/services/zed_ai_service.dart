@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 import '../models/zed/zed_chat_response.dart';
 import '../models/zed/zed_conversation.dart';
@@ -81,42 +80,74 @@ class ZedAiServiceImpl implements ZedAiService {
             const Duration(seconds: ApiConfig.requestTimeout),
           );
 
-      final responseData = jsonDecode(response.body) as Map<String, dynamic>;
-
       // Log the full response for debugging
       debugPrint('=== AI Response ===');
-      debugPrint('Status: ${responseData['status']}');
-      debugPrint('Full Response: ${jsonEncode(responseData)}');
+      debugPrint('Status Code: ${response.statusCode}');
+      debugPrint('Raw body: ${response.body}');
       debugPrint('==================');
 
-      // Store the response structure to shared preferences
-      await _storeResponseStructure(responseData);
+      final dynamic decoded = jsonDecode(response.body);
 
-      if (responseData['status'] != 'success') {
+      // Check HTTP status code
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        String errorMsg = 'Failed to send message (${response.statusCode})';
+        String? errorDetails;
+        if (decoded is Map) {
+          errorMsg = decoded['message']?.toString() ??
+              decoded['error']?.toString() ??
+              errorMsg;
+          errorDetails = decoded['errorDetails']?.toString() ??
+              decoded['details']?.toString();
+        }
         throw ZedApiException(
-          responseData['message'] as String? ?? 'Request failed',
-          errorDetails: responseData['errorDetails'] as String?,
+          errorMsg,
+          errorDetails: errorDetails,
           statusCode: response.statusCode,
         );
       }
 
-      final data = responseData['data'] as Map<String, dynamic>;
-      return ZedChatResponse.fromJson(data);
+      if (decoded is Map) {
+        final map = Map<String, dynamic>.from(decoded);
+        final status = map['status'];
+        if (status != null &&
+            status != 'success' &&
+            status != true &&
+            status != 200) {
+          throw ZedApiException(
+            map['message']?.toString() ?? 'Request failed',
+            errorDetails: map['errorDetails']?.toString(),
+            statusCode: response.statusCode,
+          );
+        }
+
+        // The data payload can be in map['data'] (as Map or String) or at top-level
+        if (map['data'] is Map) {
+          final data = Map<String, dynamic>.from(map['data'] as Map);
+          if (!data.containsKey('conversationId') && map.containsKey('conversationId')) {
+            data['conversationId'] = map['conversationId'];
+          }
+          return ZedChatResponse.fromJson(data);
+        } else if (map['data'] is String) {
+          return ZedChatResponse(
+            conversationId: (map['conversationId'] ?? map['_id'] ?? '')?.toString() ?? '',
+            message: map['data'] as String,
+          );
+        } else {
+          return ZedChatResponse.fromJson(map);
+        }
+      } else if (decoded is String) {
+        return ZedChatResponse(
+          conversationId: '',
+          message: decoded,
+        );
+      } else {
+        throw ZedApiException('Unexpected response format from AI service');
+      }
     } on http.ClientException catch (e) {
       throw ZedApiException('Network error: ${e.message}');
     } catch (e) {
       if (e is ZedApiException) rethrow;
       throw ZedApiException('Failed to send message: ${e.toString()}');
-    }
-  }
-
-  Future<void> _storeResponseStructure(Map<String, dynamic> response) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('last_ai_response', jsonEncode(response));
-      debugPrint('Response structure saved to shared preferences');
-    } catch (e) {
-      debugPrint('Failed to save response structure: ${e.toString()}');
     }
   }
 
@@ -138,19 +169,59 @@ class ZedAiServiceImpl implements ZedAiService {
             const Duration(seconds: ApiConfig.requestTimeout),
           );
 
-      final responseData = jsonDecode(response.body) as Map<String, dynamic>;
+      debugPrint('=== Conversations Response ===');
+      debugPrint('Status Code: ${response.statusCode}');
+      debugPrint('Raw body: ${response.body}');
+      debugPrint('==============================');
 
-      if (responseData['status'] != 'success') {
+      final dynamic decoded = jsonDecode(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        String errorMsg = 'Failed to get conversations (${response.statusCode})';
+        String? errorDetails;
+        if (decoded is Map) {
+          errorMsg = decoded['message']?.toString() ??
+              decoded['error']?.toString() ??
+              errorMsg;
+          errorDetails = decoded['errorDetails']?.toString();
+        }
         throw ZedApiException(
-          responseData['message'] as String? ?? 'Request failed',
-          errorDetails: responseData['errorDetails'] as String?,
+          errorMsg,
+          errorDetails: errorDetails,
           statusCode: response.statusCode,
         );
       }
 
-      final data = responseData['data'] as List<dynamic>;
-      return data
-          .map((item) => ZedConversation.fromJson(item as Map<String, dynamic>))
+      List<dynamic> list;
+      if (decoded is List) {
+        list = decoded;
+      } else if (decoded is Map) {
+        final map = Map<String, dynamic>.from(decoded);
+        final status = map['status'];
+        if (status != null &&
+            status != 'success' &&
+            status != true &&
+            status != 200) {
+          throw ZedApiException(
+            map['message']?.toString() ?? 'Request failed',
+            errorDetails: map['errorDetails']?.toString(),
+            statusCode: response.statusCode,
+          );
+        }
+        if (map['data'] is List) {
+          list = map['data'] as List<dynamic>;
+        } else if (map['conversations'] is List) {
+          list = map['conversations'] as List<dynamic>;
+        } else {
+          list = [];
+        }
+      } else {
+        list = [];
+      }
+
+      return list
+          .whereType<Map<dynamic, dynamic>>()
+          .map((item) => ZedConversation.fromJson(Map<String, dynamic>.from(item)))
           .toList();
     } on http.ClientException catch (e) {
       throw ZedApiException('Network error: ${e.message}');
@@ -179,18 +250,50 @@ class ZedAiServiceImpl implements ZedAiService {
             const Duration(seconds: ApiConfig.requestTimeout),
           );
 
-      final responseData = jsonDecode(response.body) as Map<String, dynamic>;
+      debugPrint('=== Conversation Details Response ===');
+      debugPrint('Status Code: ${response.statusCode}');
+      debugPrint('Raw body: ${response.body}');
+      debugPrint('====================================');
 
-      if (responseData['status'] != 'success') {
+      final dynamic decoded = jsonDecode(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        String errorMsg = 'Failed to get conversation (${response.statusCode})';
+        String? errorDetails;
+        if (decoded is Map) {
+          errorMsg = decoded['message']?.toString() ??
+              decoded['error']?.toString() ??
+              errorMsg;
+          errorDetails = decoded['errorDetails']?.toString();
+        }
         throw ZedApiException(
-          responseData['message'] as String? ?? 'Request failed',
-          errorDetails: responseData['errorDetails'] as String?,
+          errorMsg,
+          errorDetails: errorDetails,
           statusCode: response.statusCode,
         );
       }
 
-      final data = responseData['data'] as Map<String, dynamic>;
-      return ZedConversationDetails.fromJson(data);
+      if (decoded is Map) {
+        final map = Map<String, dynamic>.from(decoded);
+        final status = map['status'];
+        if (status != null &&
+            status != 'success' &&
+            status != true &&
+            status != 200) {
+          throw ZedApiException(
+            map['message']?.toString() ?? 'Request failed',
+            errorDetails: map['errorDetails']?.toString(),
+            statusCode: response.statusCode,
+          );
+        }
+
+        final data = map['data'] is Map
+            ? Map<String, dynamic>.from(map['data'] as Map)
+            : map;
+        return ZedConversationDetails.fromJson(data);
+      } else {
+        throw ZedApiException('Unexpected response format from conversation API');
+      }
     } on http.ClientException catch (e) {
       throw ZedApiException('Network error: ${e.message}');
     } catch (e) {
@@ -218,14 +321,42 @@ class ZedAiServiceImpl implements ZedAiService {
             const Duration(seconds: ApiConfig.requestTimeout),
           );
 
-      final responseData = jsonDecode(response.body) as Map<String, dynamic>;
+      debugPrint('=== Delete Conversation Response ===');
+      debugPrint('Status Code: ${response.statusCode}');
+      debugPrint('Raw body: ${response.body}');
+      debugPrint('====================================');
 
-      if (responseData['status'] != 'success') {
+      final dynamic decoded = jsonDecode(response.body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        String errorMsg = 'Failed to delete conversation (${response.statusCode})';
+        String? errorDetails;
+        if (decoded is Map) {
+          errorMsg = decoded['message']?.toString() ??
+              decoded['error']?.toString() ??
+              errorMsg;
+          errorDetails = decoded['errorDetails']?.toString();
+        }
         throw ZedApiException(
-          responseData['message'] as String? ?? 'Request failed',
-          errorDetails: responseData['errorDetails'] as String?,
+          errorMsg,
+          errorDetails: errorDetails,
           statusCode: response.statusCode,
         );
+      }
+
+      if (decoded is Map) {
+        final map = Map<String, dynamic>.from(decoded);
+        final status = map['status'];
+        if (status != null &&
+            status != 'success' &&
+            status != true &&
+            status != 200) {
+          throw ZedApiException(
+            map['message']?.toString() ?? 'Request failed',
+            errorDetails: map['errorDetails']?.toString(),
+            statusCode: response.statusCode,
+          );
+        }
       }
     } on http.ClientException catch (e) {
       throw ZedApiException('Network error: ${e.message}');

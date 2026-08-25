@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import '../models/school.dart';
 
 class SchoolSelector extends StatefulWidget {
-  final School currentSchool;
+  final School? currentSchool;
   final List<School> availableSchools;
   final Function(School) onSchoolSelected;
 
   const SchoolSelector({
     super.key,
-    required this.currentSchool,
+    this.currentSchool,
     required this.availableSchools,
     required this.onSchoolSelected,
   });
@@ -20,8 +20,13 @@ class SchoolSelector extends StatefulWidget {
 class _SchoolSelectorState extends State<SchoolSelector> {
   @override
   Widget build(BuildContext context) {
+    final schoolName = widget.currentSchool?.name ??
+        (widget.availableSchools.isNotEmpty
+            ? widget.availableSchools.first.name
+            : 'Select School');
+
     return GestureDetector(
-      onTap: _showSchoolDropdown,
+      onTap: widget.availableSchools.isNotEmpty ? _showSchoolDropdown : null,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
@@ -42,13 +47,15 @@ class _SchoolSelectorState extends State<SchoolSelector> {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                widget.currentSchool.name,
+                schoolName,
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: Colors.black,
                   letterSpacing: 0.5,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             const Icon(
@@ -107,7 +114,7 @@ class _SchoolSelectorState extends State<SchoolSelector> {
                 itemCount: widget.availableSchools.length,
                 itemBuilder: (context, index) {
                   final school = widget.availableSchools[index];
-                  final isSelected = school.id == widget.currentSchool.id;
+                  final isSelected = school.id == widget.currentSchool?.id;
                   return _buildSchoolItem(school, isSelected);
                 },
               ),

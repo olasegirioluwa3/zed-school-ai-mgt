@@ -9,6 +9,22 @@ class School {
     this.logoUrl,
   });
 
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'logoUrl': logoUrl,
+    };
+  }
+
+  factory School.fromJson(Map<String, dynamic> json) {
+    return School(
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      logoUrl: json['logoUrl'] as String?,
+    );
+  }
+
   School copyWith({
     String? id,
     String? name,

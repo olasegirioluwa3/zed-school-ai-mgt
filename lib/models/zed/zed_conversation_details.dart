@@ -16,23 +16,24 @@ class ZedConversationDetails {
   });
 
   factory ZedConversationDetails.fromJson(Map<String, dynamic> json) {
-    final messagesList = json['messages'] as List<dynamic>?;
+    final messagesList = (json['messages'] ?? json['chat'] ?? json['history']) as List<dynamic>?;
     final messages = messagesList
-            ?.map((m) => ZedChatMessage.fromJson(m as Map<String, dynamic>))
+            ?.whereType<Map<dynamic, dynamic>>()
+            .map((m) => ZedChatMessage.fromJson(Map<String, dynamic>.from(m)))
             .toList() ??
         [];
 
     return ZedConversationDetails(
-      conversationId: json['conversationId'] as String,
-      schoolId: json['schoolId'] as String,
-      userId: json['userId'] as String,
+      conversationId: (json['conversationId'] ?? json['conversation_id'] ?? json['_id'] ?? json['id'] ?? '')?.toString() ?? '',
+      schoolId: (json['schoolId'] ?? json['school_id'] ?? json['school'] ?? '')?.toString() ?? '',
+      userId: (json['userId'] ?? json['user_id'] ?? json['user'] ?? '')?.toString() ?? '',
       messages: messages,
-      createdAt: _parseDateTime(json['createdAt'] as String?),
+      createdAt: _parseDateTime((json['createdAt'] ?? json['created_at'])?.toString()),
     );
   }
 
   static DateTime _parseDateTime(String? dateString) {
-    if (dateString == null) {
+    if (dateString == null || dateString.isEmpty) {
       return DateTime.now();
     }
     try {
@@ -42,3 +43,4 @@ class ZedConversationDetails {
     }
   }
 }
+

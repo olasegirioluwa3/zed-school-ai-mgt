@@ -14,17 +14,22 @@ class ZedConversation {
   });
 
   factory ZedConversation.fromJson(Map<String, dynamic> json) {
+    final rawCount = json['messageCount'] ?? json['message_count'] ?? json['count'];
+    final count = rawCount is int
+        ? rawCount
+        : int.tryParse(rawCount?.toString() ?? '0') ?? 0;
+
     return ZedConversation(
-      conversationId: json['conversationId'] as String,
-      title: json['title'] as String?,
-      createdAt: _parseDateTime(json['createdAt'] as String?),
-      updatedAt: _parseDateTime(json['updatedAt'] as String?),
-      messageCount: json['messageCount'] as int? ?? 0,
+      conversationId: (json['conversationId'] ?? json['conversation_id'] ?? json['_id'] ?? json['id'] ?? '')?.toString() ?? '',
+      title: (json['title'] ?? json['name'] ?? json['subject'])?.toString(),
+      createdAt: _parseDateTime((json['createdAt'] ?? json['created_at'])?.toString()),
+      updatedAt: _parseDateTime((json['updatedAt'] ?? json['updated_at'])?.toString()),
+      messageCount: count,
     );
   }
 
   static DateTime _parseDateTime(String? dateString) {
-    if (dateString == null) {
+    if (dateString == null || dateString.isEmpty) {
       return DateTime.now();
     }
     try {
@@ -34,3 +39,4 @@ class ZedConversation {
     }
   }
 }
+

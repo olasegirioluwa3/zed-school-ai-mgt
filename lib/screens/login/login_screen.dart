@@ -26,14 +26,14 @@ class _LoginScreenState extends State<LoginScreen> {
   static const double inputBorderRadius = 16.0;
   static const double horizontalPadding = 32.0;
 
-  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _contactController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final AuthService _authService = AuthServiceImpl();
   bool _isLoading = false;
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _contactController.dispose();
     _passwordController.dispose();
     _authService.dispose();
     super.dispose();
@@ -61,7 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 32),
                 _buildHeading(),
                 const SizedBox(height: 40),
-                _buildEmailInput(),
+                _buildContactInput(),
                 const SizedBox(height: 16),
                 _buildPasswordInput(),
                 const SizedBox(height: 24),
@@ -118,7 +118,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildEmailInput() {
+  Widget _buildContactInput() {
     return Container(
       height: inputHeight,
       decoration: BoxDecoration(
@@ -126,9 +126,10 @@ class _LoginScreenState extends State<LoginScreen> {
         borderRadius: BorderRadius.circular(inputBorderRadius),
       ),
       child: TextField(
-        controller: _emailController,
+        controller: _contactController,
+        keyboardType: TextInputType.text,
         decoration: InputDecoration(
-          hintText: 'Enter Email',
+          hintText: 'Email, username or phone number',
           hintStyle: const TextStyle(
             color: inputPlaceholderColor,
             fontSize: 16,
@@ -204,12 +205,12 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
-    final email = _emailController.text.trim();
+    final contact = _contactController.text.trim();
     final password = _passwordController.text.trim();
 
-    if (email.isEmpty) {
+    if (contact.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your email')),
+        const SnackBar(content: Text('Please enter your contact')),
       );
       return;
     }
@@ -227,7 +228,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       await _authService.login(
-        email: email,
+        contact: contact,
         password: password,
       );
 

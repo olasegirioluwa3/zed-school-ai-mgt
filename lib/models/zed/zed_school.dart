@@ -10,9 +10,11 @@ class ZedSchool {
   });
 
   factory ZedSchool.fromJson(Map<String, dynamic> json) {
+    // API returns MongoDB-style '_id'; fall back to 'id' for compatibility.
+    final id = (json['_id'] ?? json['id']) as String? ?? '';
     return ZedSchool(
-      id: json['id'] as String,
-      name: json['name'] as String,
+      id: id,
+      name: json['name'] as String? ?? '',
       logoUrl: json['logoUrl'] as String?,
     );
   }

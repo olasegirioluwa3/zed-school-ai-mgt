@@ -4,7 +4,6 @@ import '../../models/chat_conversation.dart';
 import '../../models/school.dart';
 import '../../models/zed/zed_chat_message.dart';
 import '../../models/zed/zed_api_exception.dart';
-import '../../services/school_ai_service.dart';
 import '../../services/school_service.dart';
 import '../../services/zed_ai_service.dart';
 import '../../config/api_config.dart';
@@ -15,6 +14,8 @@ import '../../widgets/chat/ai_message.dart';
 import '../../widgets/chat/ai_typing_indicator.dart';
 import '../../widgets/chat/chat_input.dart';
 import '../../widgets/chat/suggestion_chip.dart';
+import '../../widgets/ad_banner_widget.dart';
+import '../../services/ad_service.dart';
 
 class AiHomeScreen extends StatefulWidget {
   const AiHomeScreen({super.key});
@@ -31,8 +32,6 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
 
   final TextEditingController _questionController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  // ignore: unused_field  — kept as fallback implementation reference
-  final SchoolAiService _aiService = MockSchoolAiService();
   final ZedAiService _zedAiService = ZedAiServiceImpl();
   final SchoolService _schoolService = SchoolService();
 
@@ -41,8 +40,16 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
   bool _isLoading = false;
   School? _currentSchool;
   String _currentConversationId = '';
-  final String _userName = 'School Admin';
-  final String _userRole = 'Administrator';
+  String get _userName {
+    if (ApiConfig.currentUser != null) {
+      final name = ApiConfig.currentUser.fullName as String?;
+      if (name != null && name.trim().isNotEmpty) return name;
+      final username = ApiConfig.currentUser.username as String?;
+      if (username != null && username.trim().isNotEmpty) return username;
+    }
+    return 'School Admin';
+  }
+  String get _userRole => ApiConfig.currentUser?.role ?? 'Administrator';
 
   @override
   void initState() {
@@ -54,48 +61,85 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
     debugPrint('=== Initializing Data ===');
     debugPrint('Auth Token: ${ApiConfig.authToken.isNotEmpty ? "Present" : "Empty"}');
 
+    // 1. Load from local cache immediately (works offline & provides instant UI)
+    await _schoolService.loadLocalSchools();
+    if (mounted) {
+      setState(() {
+        _currentSchool = _schoolService.getSelectedSchool();
+      });
+    }
+
+    // 2. Fetch fresh schools from API if online
     try {
       if (ApiConfig.authToken.isNotEmpty) {
         debugPrint('Fetching schools with auth token...');
         await _schoolService.fetchSchools();
-        setState(() {
-          _currentSchool = _schoolService.getSelectedSchool();
-        });
+        if (mounted) {
+          setState(() {
+            _currentSchool = _schoolService.getSelectedSchool();
+          });
+        }
         debugPrint('Schools loaded successfully');
       } else {
         debugPrint('Skipping schools fetch - no auth token');
       }
-      _loadConversations();
+      if (mounted && _currentSchool != null) {
+        await _loadConversations();
+      }
     } catch (e) {
-      debugPrint('Failed to load schools: ${e.toString()}');
-      // Continue with empty state if schools fail to load
+      debugPrint('Failed to fetch latest schools from API: ${e.toString()}');
+      // Continue with cached local data if API call fails
     }
   }
 
+  /// Returns the currently selected school ID.
+  /// Shows an error snackbar and throws if no school has been selected.
+  String _getSchoolId() {
+    final id = _currentSchool?.id;
+    if (id == null || id.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select a school first'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      throw StateError('No school selected');
+    }
+    return id;
+  }
+
   Future<void> _loadConversations() async {
-    // Only load conversations if we have an auth token
-    if (ApiConfig.authToken.isEmpty) {
+    // Only load conversations if we have an auth token and school
+    if (ApiConfig.authToken.isEmpty || _currentSchool == null) {
       return;
     }
     
+    final schoolId = _currentSchool!.id;
+    if (schoolId.isEmpty) {
+      return;
+    }
+
     try {
-      final schoolId = _currentSchool?.id ?? ApiConfig.testSchoolId;
       final zedConversations = await _zedAiService.getConversations(
         schoolId: schoolId,
       );
 
-      setState(() {
-        _conversations = zedConversations.map((zedConv) {
-          return ChatConversation(
-            id: zedConv.conversationId,
-            schoolId: schoolId,
-            title: zedConv.title ?? 'New conversation',
-            messages: [], // Messages will be loaded when conversation is selected
-            createdAt: zedConv.createdAt,
-            updatedAt: zedConv.updatedAt,
-          );
-        }).toList();
-      });
+      if (mounted) {
+        setState(() {
+          _conversations = zedConversations.map((zedConv) {
+            return ChatConversation(
+              id: zedConv.conversationId,
+              schoolId: schoolId,
+              title: zedConv.title ?? 'New conversation',
+              messages: [], // Messages will be loaded when conversation is selected
+              createdAt: zedConv.createdAt,
+              updatedAt: zedConv.updatedAt,
+            );
+          }).toList();
+        });
+      }
     } on ZedApiException catch (e) {
       // Silently fail on initial load, user can retry later
       debugPrint('Failed to load conversations: ${e.message}');
@@ -118,7 +162,7 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
       drawer: AiNavigationDrawer(
         conversations: _conversations,
         currentSchoolId: _currentSchool?.id ?? '',
-        currentSchoolName: _currentSchool?.name ?? '',
+        currentSchoolName: _currentSchool?.name ?? 'Select School',
         userName: _userName,
         userRole: _userRole,
         onNewChat: _handleNewChat,
@@ -143,7 +187,7 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: SchoolSelector(
-                      currentSchool: _currentSchool ?? _schoolService.getAvailableSchools().first,
+                      currentSchool: _currentSchool,
                       availableSchools: _schoolService.getAvailableSchools(),
                       onSchoolSelected: _handleSchoolSelected,
                     ),
@@ -152,9 +196,17 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
               ),
             ),
           ),
+          // Banner Ad above chat response
+          const AdBannerWidget(
+            margin: EdgeInsets.symmetric(vertical: 4),
+          ),
           // Chat content area
           Expanded(
             child: _messages.isEmpty ? _buildEmptyState() : _buildChatMessages(),
+          ),
+          // Banner Ad fixed above input field
+          const AdBannerWidget(
+            margin: EdgeInsets.symmetric(vertical: 4),
           ),
           // Chat input
           ChatInput(
@@ -295,12 +347,16 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
   }
 
   void _handleSchoolSelected(School school) {
+    if (_currentSchool?.id != school.id) {
+      AdService.instance.showRewardedAd();
+    }
     setState(() {
       _currentSchool = school;
       _schoolService.selectSchool(school.id);
       _messages.clear();
       _currentConversationId = '';
     });
+    _loadConversations();
   }
 
   void _handleAttachment(dynamic attachmentData) {
@@ -323,7 +379,7 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
 
   Future<void> _handleSendMessageWithAttachment(dynamic attachmentData) async {
     try {
-      final schoolId = _currentSchool?.id ?? ApiConfig.testSchoolId;
+      final schoolId = _getSchoolId();
       final conversationId = _currentConversationId.isEmpty ? null : _currentConversationId;
       final message = _formatAttachmentMessage(attachmentData);
       
@@ -333,6 +389,8 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
         conversationId: conversationId,
       );
 
+      final isNewConversation = _currentConversationId.isEmpty;
+
       setState(() {
         _messages.add(ChatMessage(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -341,7 +399,7 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
           timestamp: DateTime.now(),
         ));
         _isLoading = false;
-        
+
         // Save the conversation ID from the response
         if (_currentConversationId.isEmpty) {
           _currentConversationId = response.conversationId;
@@ -349,7 +407,11 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
       });
 
       _scrollToBottom();
-      _saveConversation();
+
+      // Refresh sidebar when a brand-new conversation is started
+      if (isNewConversation) {
+        _loadConversations();
+      }
     } on ZedApiException catch (e) {
       setState(() {
         _isLoading = false;
@@ -395,7 +457,7 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
     _scrollToBottom();
 
     try {
-      final schoolId = _currentSchool?.id ?? ApiConfig.testSchoolId;
+      final schoolId = _getSchoolId();
       final conversationId = _currentConversationId.isEmpty ? null : _currentConversationId;
       
       final response = await _zedAiService.sendMessage(
@@ -403,6 +465,8 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
         message: message,
         conversationId: conversationId,
       );
+
+      final isNewConversation = _currentConversationId.isEmpty;
 
       setState(() {
         _messages.add(ChatMessage(
@@ -412,7 +476,7 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
           timestamp: DateTime.now(),
         ));
         _isLoading = false;
-        
+
         // Save the conversation ID from the response
         if (_currentConversationId.isEmpty) {
           _currentConversationId = response.conversationId;
@@ -420,7 +484,11 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
       });
 
       _scrollToBottom();
-      _saveConversation();
+
+      // Refresh sidebar when a brand-new conversation is started
+      if (isNewConversation) {
+        _loadConversations();
+      }
     } on ZedApiException catch (e) {
       setState(() {
         _isLoading = false;
@@ -493,6 +561,10 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
       return;
     }
 
+    if (_currentConversationId != conversation.id) {
+      AdService.instance.showRewardedAd();
+    }
+
     Navigator.of(context).pop();
     
     setState(() {
@@ -500,7 +572,7 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
     });
 
     try {
-      final schoolId = _currentSchool?.id ?? ApiConfig.testSchoolId;
+      final schoolId = _getSchoolId();
       final conversationDetails = await _zedAiService.getConversation(
         schoolId: schoolId,
         conversationId: conversation.id,
@@ -577,7 +649,7 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
               Navigator.of(context).pop();
               
               try {
-                final schoolId = _currentSchool?.id ?? ApiConfig.testSchoolId;
+                final schoolId = _getSchoolId();
                 await _zedAiService.deleteConversation(
                   schoolId: schoolId,
                   conversationId: conversation.id,
@@ -618,12 +690,6 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
       const SnackBar(content: Text('Help coming soon')),
     );
   }
-
-  void _saveConversation() {
-    // Conversation is now managed by the API, no need to save locally
-    // The API handles conversation creation and updates
-  }
-
 
 }
 

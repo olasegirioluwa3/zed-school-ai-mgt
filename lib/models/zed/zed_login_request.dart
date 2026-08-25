@@ -1,15 +1,15 @@
 class ZedLoginRequest {
-  final String email;
+  final String contact;
   final String password;
 
   const ZedLoginRequest({
-    required this.email,
+    required this.contact,
     required this.password,
   });
 
   Map<String, dynamic> toJson() {
     return {
-      'email': email,
+      'contact': contact,
       'password': password,
     };
   }
