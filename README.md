@@ -1,17 +1,40 @@
-# my_first_app
+# zed_school_ai
 
-A new Flutter project.
+ZED School AI app.
 
-## Getting Started
+### Run the app
 
-This project is a starting point for a Flutter application.
+```bash
+flutter pub get
+flutter run
+```
 
-A few resources to get you started if this is your first Flutter project:
+### Run tests
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+```bash
+flutter test
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### Run build
+
+```bash
+flutter build apk --release --obfuscate --split-debug-info=symbols/1.0.0+2
+```
+
+```bash
+flutter build appbundle --release --obfuscate --split-debug-info=symbols/1.0.0+2
+```
+
+## Audit Checklist
+
+- Verify profile save/load behavior
+- Confirm timer countdown and automatic timeout on quiz screen
+- Confirm beep audio playback on countdown and answer events
+- Verify perfect-score celebration and score popup
+- Confirm rewarded ad flow every 3 quiz sessions
+- Inspect `pubspec.yaml` for asset registration and dependency versions
+- Confirm banner ad widget loads without blocking UI
+
+## Notes
+
+This README reflects the current implementation and status as of the latest changes. The app is functionally complete for quiz flow and basic audit review, but full Play Store readiness should include final QA on ads, sound behavior, and build packaging.
