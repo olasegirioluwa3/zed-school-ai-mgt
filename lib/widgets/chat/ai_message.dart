@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../models/chat_message.dart';
 
 class AiMessage extends StatelessWidget {
@@ -38,61 +40,75 @@ class AiMessage extends StatelessWidget {
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.only(left: 32),
-            child: MarkdownBody(
-              data: message.content,
-              styleSheet: MarkdownStyleSheet(
-                p: const TextStyle(
-                  fontSize: 16,
-                  color: Colors.black,
-                  height: 1.5,
-                ),
-                h1: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-                h2: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-                h3: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-                listBullet: const TextStyle(
-                  fontSize: 16,
-                  color: Colors.black,
-                ),
-                code: TextStyle(
-                  backgroundColor: Colors.grey[200],
-                  fontFamily: 'monospace',
-                  fontSize: 14,
-                ),
-                codeblockDecoration: BoxDecoration(
-                  color: Colors.grey[900],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                blockquote: TextStyle(
-                  backgroundColor: Colors.grey[100],
-                  color: Colors.grey[700],
-                ),
-                blockquoteDecoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  border: Border(left: BorderSide(color: Colors.grey[400]!)),
-                ),
-                blockquotePadding: const EdgeInsets.all(8),
-                tableHead: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-                tableBody: const TextStyle(
-                  color: Colors.black,
-                ),
-                tableBorder: TableBorder.all(
-                  color: Colors.grey[300]!,
-                  width: 1,
+            child: SelectionArea(
+              child: MarkdownBody(
+                data: message.content,
+                onTapLink: (text, href, title) async {
+                  if (href != null) {
+                    final uri = Uri.parse(href);
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri);
+                    }
+                  }
+                },
+                styleSheet: MarkdownStyleSheet(
+                  p: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.black,
+                    height: 1.5,
+                  ),
+                  h1: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                  h2: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                  h3: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                  listBullet: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.black,
+                  ),
+                  code: TextStyle(
+                    backgroundColor: Colors.grey[200],
+                    fontFamily: 'monospace',
+                    fontSize: 14,
+                  ),
+                  codeblockDecoration: BoxDecoration(
+                    color: Colors.grey[900],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  blockquote: TextStyle(
+                    backgroundColor: Colors.grey[100],
+                    color: Colors.grey[700],
+                  ),
+                  blockquoteDecoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    border: Border(left: BorderSide(color: Colors.grey[400]!)),
+                  ),
+                  blockquotePadding: const EdgeInsets.all(8),
+                  tableHead: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                  tableBody: const TextStyle(
+                    color: Colors.black,
+                  ),
+                  tableBorder: TableBorder.all(
+                    color: Colors.grey[300]!,
+                    width: 1,
+                  ),
+                  a: const TextStyle(
+                    color: Colors.blue,
+                    decoration: TextDecoration.underline,
+                  ),
                 ),
               ),
             ),
@@ -104,7 +120,12 @@ class AiMessage extends StatelessWidget {
                 children: [
                   if (onCopy != null)
                     TextButton.icon(
-                      onPressed: onCopy,
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: message.content));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Copied to clipboard')),
+                        );
+                      },
                       icon: const Icon(Icons.copy, size: 16),
                       label: const Text(
                         'Copy',
