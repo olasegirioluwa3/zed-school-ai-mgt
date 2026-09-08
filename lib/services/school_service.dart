@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'session_service.dart';
 import '../models/school.dart';
 import '../models/zed/zed_school.dart';
 import '../models/zed/zed_api_exception.dart';
@@ -36,6 +37,8 @@ class SchoolService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_selectedSchoolKey, schoolId);
+      // Also persist to session service for quick access across app
+      await SessionService.saveSelectedSchoolId(schoolId);
     } catch (e) {
       debugPrint('Failed to persist selected school: $e');
     }
@@ -181,6 +184,53 @@ class SchoolService {
       throw ZedApiException('Failed to fetch schools: ${e.toString()}');
     } finally {
       _isLoading = false;
+    }
+  }
+
+  /// Static method for AdminHome to get schools
+  /// Returns raw JSON data for compatibility with AdminHome's SchoolModel
+  static Future<List<Map<String, dynamic>>> getMySchools() async {
+    try {
+      final url = Uri.parse('${ApiConfig.zedAiBaseUrl}${ApiConfig.schoolsEndpoint}');
+      
+      final headers = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (ApiConfig.authToken.isNotEmpty) {
+        headers['Authorization'] = 'Bearer ${ApiConfig.authToken}';
+      }
+
+      final body = jsonEncode({'role': 'admin'});
+      
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: body,
+      ).timeout(
+        const Duration(seconds: ApiConfig.requestTimeout),
+      );
+
+      final decoded = jsonDecode(response.body);
+
+      List<dynamic> data;
+
+      if (decoded is List) {
+        data = decoded;
+      } else if (decoded is Map<String, dynamic>) {
+        if (decoded['status'] != 'success') {
+          throw Exception(decoded['message'] ?? 'Failed to fetch schools');
+        }
+        data = decoded['data'] as List<dynamic>;
+      } else {
+        throw Exception('Unexpected response format');
+      }
+
+      return data.map((item) => item as Map<String, dynamic>).toList();
+    } catch (e) {
+      debugPrint('Error in getMySchools: $e');
+      // Return empty list on error for stub implementation
+      return [];
     }
   }
 }

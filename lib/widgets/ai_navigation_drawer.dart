@@ -14,6 +14,7 @@ class AiNavigationDrawer extends StatelessWidget {
   final Function(ChatConversation) onChatDeleted;
   final VoidCallback onSettings;
   final VoidCallback onHelp;
+  final VoidCallback onManageSchool;
 
   const AiNavigationDrawer({
     super.key,
@@ -28,6 +29,7 @@ class AiNavigationDrawer extends StatelessWidget {
     required this.onChatDeleted,
     required this.onSettings,
     required this.onHelp,
+    required this.onManageSchool,
   });
 
   @override
@@ -50,6 +52,9 @@ class AiNavigationDrawer extends StatelessWidget {
           _buildHeader(context),
           // New chat button
           _buildNewChatButton(),
+          const SizedBox(height: 8),
+          // Manage School button
+          _buildManageSchoolButton(),
           const SizedBox(height: 16),
           // Search chats
           _buildSearchChats(),
@@ -118,6 +123,40 @@ class AiNavigationDrawer extends StatelessWidget {
               SizedBox(width: 12),
               Text(
                 'New chat',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildManageSchoolButton() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GestureDetector(
+        onTap: onManageSchool,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF4CAF50),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Row(
+            children: [
+              Icon(
+                Icons.school,
+                color: Colors.white,
+                size: 20,
+              ),
+              SizedBox(width: 12),
+              Text(
+                'Manage School',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 16,

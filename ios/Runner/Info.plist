@@ -83,5 +83,7 @@
 	</dict>
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-6710188887500528~9017649547</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Camera access is needed to scan QR codes.</string>
 </dict>
 </plist>

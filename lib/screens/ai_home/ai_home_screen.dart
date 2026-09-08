@@ -16,6 +16,7 @@ import '../../widgets/chat/chat_input.dart';
 import '../../widgets/chat/suggestion_chip.dart';
 import '../../widgets/ad_banner_widget.dart';
 import '../../services/ad_service.dart';
+import '../adminapp/admin_home.dart';
 
 class AiHomeScreen extends StatefulWidget {
   const AiHomeScreen({super.key});
@@ -171,6 +172,7 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
         onChatDeleted: _handleChatDeleted,
         onSettings: _handleSettings,
         onHelp: _handleHelp,
+        onManageSchool: _handleManageSchool,
       ),
       body: Column(
         children: [
@@ -688,6 +690,15 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
     // TODO: Navigate to help screen
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Help coming soon')),
+    );
+  }
+
+  void _handleManageSchool() {
+    Navigator.of(context).pop();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const StaffHomeScreen(),
+      ),
     );
   }
 

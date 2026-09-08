@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
-import '../ai_home/ai_home_screen.dart';
+import '../adminapp/school_screen.dart';
+import '../../services/school_service.dart';
+import '../../services/session_service.dart';
 import '../../services/auth_service.dart';
 import '../../models/zed/zed_api_exception.dart';
+import '../ai_home/ai_home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -204,6 +207,8 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // Continue button removed as per requirements
+
   Future<void> _handleLogin() async {
     final contact = _contactController.text.trim();
     final password = _passwordController.text.trim();
@@ -232,10 +237,11 @@ class _LoginScreenState extends State<LoginScreen> {
         password: password,
       );
 
-      // Navigate to AI Home screen on successful login
+      // After login, fetch schools and navigate to school selection
+      await SchoolService().fetchSchools();
       if (mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const AiHomeScreen()),
+          MaterialPageRoute(builder: (context) => const SchoolScreen()),
         );
       }
     } on ZedApiException catch (e) {
@@ -255,5 +261,12 @@ class _LoginScreenState extends State<LoginScreen> {
         const SnackBar(content: Text('Login failed. Please try again.')),
       );
     }
+  }
+
+  void _handleContinue() {
+    // Navigate to AI Home screen without authentication
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (context) => const AiHomeScreen()),
+    );
   }
 }
