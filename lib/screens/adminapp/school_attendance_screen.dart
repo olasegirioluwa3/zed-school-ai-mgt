@@ -21,7 +21,7 @@ class _SchoolAttendanceScreenState extends State<SchoolAttendanceScreen> {
   List<StaffAttendanceModel> _attendanceRecords = [];
   bool _isLoading = true;
   String _selectedFilter = 'All'; // 'All', 'Checked In', 'Checked Out', 'On Time', 'Late'
-  DateTime _selectedDate = DateTime.now();
+  final DateTime _selectedDate = DateTime.now();
 
   @override
   void initState() {
@@ -306,7 +306,7 @@ class _SchoolAttendanceScreenState extends State<SchoolAttendanceScreen> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: _filteredRecords.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final record = _filteredRecords[index];
                   return _buildAttendanceCard(record);
@@ -497,7 +497,7 @@ class _SchoolAttendanceScreenState extends State<SchoolAttendanceScreen> {
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -512,7 +512,7 @@ class _SchoolAttendanceScreenState extends State<SchoolAttendanceScreen> {
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundColor: const Color(0xFFFF7A00).withOpacity(0.12),
+                backgroundColor: const Color(0xFFFF7A00).withValues(alpha: 0.12),
                 child: const Icon(Icons.person, color: Color(0xFFFF7A00), size: 24),
               ),
               const SizedBox(width: 12),
@@ -544,8 +544,8 @@ class _SchoolAttendanceScreenState extends State<SchoolAttendanceScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: isOnTime
-                      ? const Color(0xFF10B981).withOpacity(0.12)
-                      : const Color(0xFFF59E0B).withOpacity(0.15),
+                      ? const Color(0xFF10B981).withValues(alpha: 0.12)
+                      : const Color(0xFFF59E0B).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
@@ -670,7 +670,7 @@ class _SchoolAttendanceScreenState extends State<SchoolAttendanceScreen> {
               alignment: Alignment.centerRight,
               child: TextButton.icon(
                 style: TextButton.styleFrom(
-                  backgroundColor: const Color(0xFF3B82F6).withOpacity(0.08),
+                  backgroundColor: const Color(0xFF3B82F6).withValues(alpha: 0.08),
                   foregroundColor: const Color(0xFF2563EB),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -703,7 +703,7 @@ class _SchoolAttendanceScreenState extends State<SchoolAttendanceScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFFF7A00).withOpacity(0.12),
+              color: const Color(0xFFFF7A00).withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.assignment_outlined, size: 40, color: Color(0xFFFF7A00)),

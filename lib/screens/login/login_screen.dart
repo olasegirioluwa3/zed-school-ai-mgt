@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import '../adminapp/school_screen.dart';
 import '../../services/school_service.dart';
-import '../../services/session_service.dart';
 import '../../services/auth_service.dart';
 import '../../models/zed/zed_api_exception.dart';
-import '../ai_home/ai_home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -261,12 +259,5 @@ class _LoginScreenState extends State<LoginScreen> {
         const SnackBar(content: Text('Login failed. Please try again.')),
       );
     }
-  }
-
-  void _handleContinue() {
-    // Navigate to AI Home screen without authentication
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const AiHomeScreen()),
-    );
   }
 }
