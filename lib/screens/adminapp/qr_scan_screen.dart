@@ -49,6 +49,7 @@ class _QrScanScreenState extends State<QrScanScreen>
   // Real-time scan feedback & timer
   Timer? _scanTimer;
   int _secondsElapsed = 0;
+  int _framesAnalyzed = 0;
 
   // Track staff members scanned during this active session
   final List<StaffAttendanceRecord> _sessionAttendance = [];
@@ -73,11 +74,13 @@ class _QrScanScreenState extends State<QrScanScreen>
   void _startScanTimer() {
     _scanTimer?.cancel();
     _secondsElapsed = 0;
+    _framesAnalyzed = 0;
     _scanTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
       if (!_isProcessing) {
         setState(() {
           _secondsElapsed++;
+          _framesAnalyzed += 15; // approximate live frames
         });
       }
     });
@@ -86,6 +89,7 @@ class _QrScanScreenState extends State<QrScanScreen>
   void _resetScanTimer() {
     setState(() {
       _secondsElapsed = 0;
+      _framesAnalyzed = 0;
       _isProcessing = false;
     });
   }
@@ -234,6 +238,7 @@ class _QrScanScreenState extends State<QrScanScreen>
     if (!mounted) return;
 
     // Navigate to Staff Attendance Verify Successful Screen
+    if (!mounted) return;
     await Navigator.push<bool>(
       context,
       MaterialPageRoute(
@@ -764,16 +769,16 @@ class _QrScanScreenState extends State<QrScanScreen>
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: [
-                                const Color(0xFFFF7A00).withValues(alpha: 0.0),
+                                const Color(0xFFFF7A00).withValues(alpha:0.0),
                                 const Color(0xFFFF7A00),
                                 const Color(0xFFFFB066),
                                 const Color(0xFFFF7A00),
-                                const Color(0xFFFF7A00).withValues(alpha: 0.0),
+                                const Color(0xFFFF7A00).withOpacity(0.0),
                               ],
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFFFF7A00).withValues(alpha: 0.8),
+                                color: const Color(0xFFFF7A00).withValues(alpha:0.8),
                                 blurRadius: 8,
                                 spreadRadius: 1.5,
                               ),
@@ -796,7 +801,7 @@ class _QrScanScreenState extends State<QrScanScreen>
                 children: [
                   Container(
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.45),
+                      color: Colors.black.withValues(alpha:0.45),
                       shape: BoxShape.circle,
                     ),
                     child: IconButton(
@@ -835,7 +840,7 @@ class _QrScanScreenState extends State<QrScanScreen>
                     icon: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
+                        color: Colors.white.withValues(alpha:0.18),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.help_outline,
@@ -851,7 +856,7 @@ class _QrScanScreenState extends State<QrScanScreen>
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFF7A00).withValues(alpha: 0.85),
+                        color: const Color(0xFFFF7A00).withValues(alpha:0.85),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Row(
@@ -1087,12 +1092,12 @@ class _QrScanScreenState extends State<QrScanScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.75),
+        color: Colors.black.withValues(alpha:0.75),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: badgeColor.withValues(alpha: 0.6), width: 1.5),
+        border: Border.all(color: badgeColor.withValues(alpha:0.6), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: badgeColor.withValues(alpha: 0.2),
+            color: badgeColor.withValues(alpha:0.2),
             blurRadius: 10,
             spreadRadius: 1,
           ),
