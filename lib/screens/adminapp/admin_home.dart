@@ -13,8 +13,8 @@ import 'profile_screen.dart';
 import 'schoolpayment_screen.dart';
 import 'school_screen.dart';
 
-import 'StudentsClass_Screen.dart';
-import 'School_Attendance_screen.dart';
+import 'students_class_screen.dart';
+import 'school_attendance_screen.dart';
 import 'qr_scan_screen.dart';
 import '../ai_home/ai_home_screen.dart';
 
@@ -119,7 +119,7 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
       children: [
         CircleAvatar(
           radius: 20,
-          backgroundColor: const Color(0xFFFF7A00).withOpacity(0.15),
+          backgroundColor: const Color(0xFFFF7A00).withValues(alpha: 0.15),
           backgroundImage:
               (user?.profilePicture != null && user!.profilePicture!.isNotEmpty)
                   ? NetworkImage(user!.profilePicture!)
@@ -149,7 +149,7 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-              color: const Color(0xFFFF7A00).withOpacity(0.1),
+              color: const Color(0xFFFF7A00).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20)),
           child: Row(
             mainAxisSize: MainAxisSize.min,
