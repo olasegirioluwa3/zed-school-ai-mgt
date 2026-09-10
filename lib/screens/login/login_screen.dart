@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../adminapp/school_screen.dart';
+import '../ai_home/ai_home_screen.dart';
 import '../../services/school_service.dart';
 import '../../services/auth_service.dart';
 import '../../models/zed/zed_api_exception.dart';
@@ -235,11 +235,11 @@ class _LoginScreenState extends State<LoginScreen> {
         password: password,
       );
 
-      // After login, fetch schools and navigate to school selection
+      // After login, fetch schools and navigate to AI chat page
       await SchoolService().fetchSchools();
       if (mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const SchoolScreen()),
+          MaterialPageRoute(builder: (context) => const AiHomeScreen()),
         );
       }
     } on ZedApiException catch (e) {

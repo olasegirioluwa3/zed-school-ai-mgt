@@ -49,7 +49,6 @@ class _QrScanScreenState extends State<QrScanScreen>
   // Real-time scan feedback & timer
   Timer? _scanTimer;
   int _secondsElapsed = 0;
-  int _framesAnalyzed = 0;
 
   // Track staff members scanned during this active session
   final List<StaffAttendanceRecord> _sessionAttendance = [];
@@ -74,13 +73,11 @@ class _QrScanScreenState extends State<QrScanScreen>
   void _startScanTimer() {
     _scanTimer?.cancel();
     _secondsElapsed = 0;
-    _framesAnalyzed = 0;
     _scanTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
       if (!_isProcessing) {
         setState(() {
           _secondsElapsed++;
-          _framesAnalyzed += 15; // approximate live frames
         });
       }
     });
@@ -89,7 +86,6 @@ class _QrScanScreenState extends State<QrScanScreen>
   void _resetScanTimer() {
     setState(() {
       _secondsElapsed = 0;
-      _framesAnalyzed = 0;
       _isProcessing = false;
     });
   }
@@ -773,7 +769,7 @@ class _QrScanScreenState extends State<QrScanScreen>
                                 const Color(0xFFFF7A00),
                                 const Color(0xFFFFB066),
                                 const Color(0xFFFF7A00),
-                                const Color(0xFFFF7A00).withOpacity(0.0),
+                                const Color(0xFFFF7A00).withValues(alpha: 0.0),
                               ],
                             ),
                             boxShadow: [

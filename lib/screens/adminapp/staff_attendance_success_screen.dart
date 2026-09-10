@@ -143,7 +143,7 @@ class _StaffAttendanceSuccessScreenState
             margin: const EdgeInsets.only(right: 16, top: 10, bottom: 10),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: const Color(0xFFFF7A00).withOpacity(0.15),
+              color: const Color(0xFFFF7A00).withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
@@ -301,7 +301,7 @@ class _StaffAttendanceSuccessScreenState
                   color: (widget.isAlreadyLogged
                           ? const Color(0xFFFF7A00)
                           : const Color(0xFF10B981))
-                      .withOpacity(0.3),
+                      .withValues(alpha: 0.3),
                   blurRadius: 14,
                   offset: const Offset(0, 5),
                 ),
@@ -361,7 +361,7 @@ class _StaffAttendanceSuccessScreenState
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),
@@ -422,7 +422,7 @@ class _StaffAttendanceSuccessScreenState
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.12),
+                    color: Colors.white.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: const Text(
@@ -453,10 +453,10 @@ class _StaffAttendanceSuccessScreenState
                           width: 78,
                           height: 90,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFF7A00).withOpacity(0.1),
+                            color: const Color(0xFFFF7A00).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: const Color(0xFFFF7A00).withOpacity(0.4),
+                              color: const Color(0xFFFF7A00).withValues(alpha: 0.4),
                               width: 1.5,
                             ),
                           ),
@@ -516,7 +516,7 @@ class _StaffAttendanceSuccessScreenState
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFF7A00).withOpacity(0.1),
+                              color: const Color(0xFFFF7A00).withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -715,10 +715,10 @@ class _StaffAttendanceSuccessScreenState
               borderRadius: BorderRadius.circular(16),
             ),
           ),
-          icon: const Icon(Icons.home_outlined,
+          icon: const Icon(Icons.check_circle_outline,
               size: 20, color: Color(0xFF475569)),
           label: const Text(
-            "Done / Back to Admin Home",
+            "Done / Finish Session",
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -727,7 +727,11 @@ class _StaffAttendanceSuccessScreenState
           ),
           onPressed: () {
             _countdownTimer?.cancel();
-            Navigator.popUntil(context, (route) => route.isFirst);
+            int popCount = 0;
+            Navigator.popUntil(context, (route) {
+              if (route.isFirst) return true;
+              return popCount++ >= 2;
+            });
           },
         ),
       ],

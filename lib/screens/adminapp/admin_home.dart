@@ -8,12 +8,6 @@ import '../../utils/connectivity_helper.dart';
 
 import '../../widgets/advert_slider.dart';
 
-import 'results_screen.dart';
-import 'profile_screen.dart';
-import 'schoolpayment_screen.dart';
-import 'school_screen.dart';
-
-import 'students_class_screen.dart';
 import 'school_attendance_screen.dart';
 import 'qr_scan_screen.dart';
 import '../ai_home/ai_home_screen.dart';
@@ -236,6 +230,16 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
     );
   }
 
+  void _showComingSoon(String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$feature is coming soon in the next update'),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   Widget _buildGrid() {
     return GridView.count(
       crossAxisCount: 2,
@@ -246,56 +250,84 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
       childAspectRatio: 0.9,
       children: [
         _card(
-            "Class Result",
-            Icons.person_outline,
-            () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const StudentsClassScreen()))),
-        _card(
-            "Result",
-            Icons.check_circle_outline,
-            () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const ResultsScreen()))),
-        _card(
-            "School\nAttendance",
-            Icons.assignment_turned_in_outlined,
-            () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => SchoolAttendanceScreen(initialSchoolId: selectedSchool?.id),
-                ),
-            ),
+          "Class Result",
+          Icons.person_outline,
+          () => _showComingSoon("Class Result"),
+          isComingSoon: true,
         ),
         _card(
-            "Payment",
-            Icons.credit_card,
-            () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const SchoolpaymentScreen()))),
+          "Result",
+          Icons.check_circle_outline,
+          () => _showComingSoon("Results"),
+          isComingSoon: true,
+        ),
+        _card(
+          "School\nAttendance",
+          Icons.assignment_turned_in_outlined,
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => SchoolAttendanceScreen(initialSchoolId: selectedSchool?.id),
+            ),
+          ),
+        ),
+        _card(
+          "Payment",
+          Icons.credit_card,
+          () => _showComingSoon("Payment"),
+          isComingSoon: true,
+        ),
       ],
     );
   }
 
-  Widget _card(String title, IconData icon, VoidCallback onTap) {
+  Widget _card(String title, IconData icon, VoidCallback onTap, {bool isComingSoon = false}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-            color: const Color(0xFFFF7A00),
-            borderRadius: BorderRadius.circular(28)),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          color: isComingSoon ? const Color(0xFFFF9E42) : const Color(0xFFFF7A00),
+          borderRadius: BorderRadius.circular(28),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
           children: [
-            Icon(icon, size: 40, color: Colors.white),
-            const SizedBox(height: 12),
-            Text(title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 40, color: Colors.white),
+                const SizedBox(height: 12),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
                     fontSize: 16,
                     color: Colors.white,
-                    fontWeight: FontWeight.w600)),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            if (isComingSoon)
+              Positioned(
+                top: 12,
+                right: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Text(
+                    "Soon",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -306,28 +338,43 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20),
       decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           IconButton(
-              icon: const Icon(Icons.home),
-              color: Colors.orange,
-              onPressed: () {}),
+            icon: const Icon(Icons.home),
+            color: Colors.orange,
+            tooltip: "Home",
+            onPressed: () {},
+          ),
           IconButton(
-              icon: const Icon(Icons.school),
-              onPressed: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const SchoolScreen()))),
+            icon: const Icon(Icons.school),
+            tooltip: "School Profile",
+            onPressed: () => _showComingSoon("School profile"),
+          ),
           IconButton(
-              icon: const Icon(Icons.person),
-              onPressed: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const ProfileScreen()))),
+            icon: const Icon(Icons.person),
+            tooltip: "User Profile",
+            onPressed: () => _showComingSoon("User profile"),
+          ),
           IconButton(
-              icon: const Icon(Icons.psychology),
-              color: Colors.orange,
-              onPressed: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const AiHomeScreen()))),
+            icon: const Icon(Icons.psychology),
+            color: Colors.orange,
+            tooltip: "AI Chat",
+            onPressed: () {
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              } else {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AiHomeScreen()),
+                );
+              }
+            },
+          ),
         ],
       ),
     );

@@ -6,6 +6,7 @@ import '../../models/zed/zed_chat_message.dart';
 import '../../models/zed/zed_api_exception.dart';
 import '../../services/school_service.dart';
 import '../../services/zed_ai_service.dart';
+import '../../services/ad_service.dart';
 import '../../config/api_config.dart';
 import '../../widgets/ai_navigation_drawer.dart';
 import '../../widgets/school_selector.dart';
@@ -14,9 +15,9 @@ import '../../widgets/chat/ai_message.dart';
 import '../../widgets/chat/ai_typing_indicator.dart';
 import '../../widgets/chat/chat_input.dart';
 import '../../widgets/chat/suggestion_chip.dart';
-import '../../widgets/ad_banner_widget.dart';
-import '../../services/ad_service.dart';
 import '../adminapp/admin_home.dart';
+import '../adminapp/school_attendance_screen.dart';
+import '../adminapp/qr_scan_screen.dart';
 
 class AiHomeScreen extends StatefulWidget {
   const AiHomeScreen({super.key});
@@ -173,10 +174,18 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
         onSettings: _handleSettings,
         onHelp: _handleHelp,
         onManageSchool: _handleManageSchool,
+        onAttendance: () {
+          Navigator.of(context).pop();
+          _openSchoolAttendance();
+        },
+        onQrScan: () {
+          Navigator.of(context).pop();
+          _openQrScanner();
+        },
       ),
       body: Column(
         children: [
-          // Fixed header - DO NOT MODIFY
+          // Fixed header
           SafeArea(
             bottom: false,
             child: Padding(
@@ -186,7 +195,7 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
                   Builder(
                     builder: (context) => _buildMenuButton(context),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: SchoolSelector(
                       currentSchool: _currentSchool,
@@ -194,21 +203,25 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
                       onSchoolSelected: _handleSchoolSelected,
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  _buildHeaderIconButton(
+                    icon: Icons.qr_code_scanner,
+                    tooltip: 'Scan Attendance',
+                    onTap: _openQrScanner,
+                  ),
+                  const SizedBox(width: 6),
+                  _buildHeaderIconButton(
+                    icon: Icons.assignment_turned_in_outlined,
+                    tooltip: 'Attendance Records',
+                    onTap: _openSchoolAttendance,
+                  ),
                 ],
               ),
             ),
           ),
-          // Banner Ad above chat response
-          const AdBannerWidget(
-            margin: EdgeInsets.symmetric(vertical: 4),
-          ),
           // Chat content area
           Expanded(
             child: _messages.isEmpty ? _buildEmptyState() : _buildChatMessages(),
-          ),
-          // Banner Ad fixed above input field
-          const AdBannerWidget(
-            margin: EdgeInsets.symmetric(vertical: 4),
           ),
           // Chat input
           ChatInput(
@@ -251,6 +264,16 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
             ],
           ),
           const SizedBox(height: 32),
+          SuggestionChip(
+            text: 'Take staff attendance (Scan QR Code)',
+            onTap: _openQrScanner,
+          ),
+          const SizedBox(height: 12),
+          SuggestionChip(
+            text: 'View today\'s staff attendance records',
+            onTap: _openSchoolAttendance,
+          ),
+          const SizedBox(height: 12),
           SuggestionChip(
             text: 'How many students have paid their school fees in SSS 3?',
             onTap: () => _handleSuggestionTap('How many students have paid their school fees in SSS 3?'),
@@ -348,10 +371,41 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
     );
   }
 
+  Widget _buildHeaderIconButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onTap,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: menuButtonSize,
+          height: menuButtonSize,
+          decoration: BoxDecoration(
+            color: whiteColor,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withValues(alpha: 0.1),
+                spreadRadius: 1,
+                blurRadius: 3,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          child: Icon(
+            icon,
+            color: const Color(0xFFFF8C42),
+            size: 22,
+          ),
+        ),
+      ),
+    );
+  }
+
   void _handleSchoolSelected(School school) {
-    if (_currentSchool?.id != school.id) {
-      AdService.instance.showRewardedAd();
-    }
     setState(() {
       _currentSchool = school;
       _schoolService.selectSchool(school.id);
@@ -702,6 +756,25 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
     );
   }
 
+  void _openQrScanner() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => QrScanScreen(
+          schoolName: _currentSchool?.name,
+        ),
+      ),
+    );
+  }
+
+  void _openSchoolAttendance() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => SchoolAttendanceScreen(
+          initialSchoolId: _currentSchool?.id,
+        ),
+      ),
+    );
+  }
 }
 
 class _Dot extends StatelessWidget {

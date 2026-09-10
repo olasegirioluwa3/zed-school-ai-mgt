@@ -15,6 +15,8 @@ class AiNavigationDrawer extends StatelessWidget {
   final VoidCallback onSettings;
   final VoidCallback onHelp;
   final VoidCallback onManageSchool;
+  final VoidCallback? onAttendance;
+  final VoidCallback? onQrScan;
 
   const AiNavigationDrawer({
     super.key,
@@ -30,6 +32,8 @@ class AiNavigationDrawer extends StatelessWidget {
     required this.onSettings,
     required this.onHelp,
     required this.onManageSchool,
+    this.onAttendance,
+    this.onQrScan,
   });
 
   @override
@@ -53,9 +57,19 @@ class AiNavigationDrawer extends StatelessWidget {
           // New chat button
           _buildNewChatButton(),
           const SizedBox(height: 8),
+          // QR Attendance Scan button
+          if (onQrScan != null) ...[
+            _buildQrScanButton(),
+            const SizedBox(height: 8),
+          ],
+          // School Attendance button
+          if (onAttendance != null) ...[
+            _buildAttendanceButton(),
+            const SizedBox(height: 8),
+          ],
           // Manage School button
           _buildManageSchoolButton(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           // Search chats
           _buildSearchChats(),
           const SizedBox(height: 8),
@@ -136,6 +150,74 @@ class AiNavigationDrawer extends StatelessWidget {
     );
   }
 
+  Widget _buildQrScanButton() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GestureDetector(
+        onTap: onQrScan,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFF8C42),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Row(
+            children: [
+              Icon(
+                Icons.qr_code_scanner,
+                color: Colors.white,
+                size: 20,
+              ),
+              SizedBox(width: 12),
+              Text(
+                'Scan QR Attendance',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAttendanceButton() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GestureDetector(
+        onTap: onAttendance,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF10B981),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Row(
+            children: [
+              Icon(
+                Icons.assignment_turned_in_outlined,
+                color: Colors.white,
+                size: 20,
+              ),
+              SizedBox(width: 12),
+              Text(
+                'School Attendance',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildManageSchoolButton() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -144,19 +226,19 @@ class AiNavigationDrawer extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: const Color(0xFF4CAF50),
+            color: const Color(0xFF6366F1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: const Row(
             children: [
               Icon(
-                Icons.school,
+                Icons.dashboard_outlined,
                 color: Colors.white,
                 size: 20,
               ),
               SizedBox(width: 12),
               Text(
-                'Manage School',
+                'Admin Dashboard',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 16,
