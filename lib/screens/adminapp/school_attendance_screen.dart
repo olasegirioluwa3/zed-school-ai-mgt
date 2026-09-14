@@ -21,7 +21,14 @@ class _SchoolAttendanceScreenState extends State<SchoolAttendanceScreen> {
   List<StaffAttendanceModel> _attendanceRecords = [];
   bool _isLoading = true;
   String _selectedFilter = 'All'; // 'All', 'Checked In', 'Checked Out', 'On Time', 'Late'
-  final DateTime _selectedDate = DateTime.now();
+  DateTime _selectedDate = DateTime.now();
+
+  bool get _isToday {
+    final now = DateTime.now();
+    return _selectedDate.year == now.year &&
+        _selectedDate.month == now.month &&
+        _selectedDate.day == now.day;
+  }
 
   @override
   void initState() {
@@ -68,10 +75,81 @@ class _SchoolAttendanceScreenState extends State<SchoolAttendanceScreen> {
     }
   }
 
-  Future<void> _loadAttendance(String schoolId) async {
-    setState(() => _isLoading = true);
+  Future<void> _selectDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFFFF7A00),
+              onPrimary: Colors.white,
+              onSurface: Color(0xFF1E293B),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null &&
+        (picked.year != _selectedDate.year ||
+            picked.month != _selectedDate.month ||
+            picked.day != _selectedDate.day)) {
+      setState(() {
+        _selectedDate = picked;
+      });
+      if (_selectedSchool != null) {
+        _loadAttendance(_selectedSchool!.id);
+      }
+    }
+  }
+
+  void _changeDateBy(int days) {
+    setState(() {
+      _selectedDate = _selectedDate.add(Duration(days: days));
+    });
+    if (_selectedSchool != null) {
+      _loadAttendance(_selectedSchool!.id);
+    }
+  }
+
+  void _resetToToday() {
+    setState(() {
+      _selectedDate = DateTime.now();
+    });
+    if (_selectedSchool != null) {
+      _loadAttendance(_selectedSchool!.id);
+    }
+  }
+
+  Future<void> _loadAttendance(String schoolId, {bool isRefresh = false}) async {
+    final dateStr = StaffAttendanceService.formatDateForApi(_selectedDate);
+
+    // If not forcing a refresh, load cached records from device first for instant display
+    if (!isRefresh) {
+      final cached = await StaffAttendanceService.getLocalAttendance(schoolId, dateStr: dateStr);
+      if (cached.isNotEmpty && mounted) {
+        setState(() {
+          _attendanceRecords = cached;
+          _isLoading = false;
+        });
+      } else {
+        setState(() => _isLoading = true);
+      }
+    } else {
+      setState(() => _isLoading = true);
+    }
+
     try {
-      final records = await StaffAttendanceService.fetchTodayAttendance(schoolId: schoolId);
+      final records = await StaffAttendanceService.fetchAttendanceByDate(
+        schoolId: schoolId,
+        date: _selectedDate,
+        forceRefresh: isRefresh,
+      );
       if (!mounted) return;
       setState(() {
         _attendanceRecords = records;
@@ -80,7 +158,11 @@ class _SchoolAttendanceScreenState extends State<SchoolAttendanceScreen> {
     } catch (e) {
       debugPrint("Error loading attendance records: $e");
       if (!mounted) return;
-      setState(() => _isLoading = false);
+      final cached = await StaffAttendanceService.getLocalAttendance(schoolId, dateStr: dateStr);
+      setState(() {
+        _attendanceRecords = cached;
+        _isLoading = false;
+      });
     }
   }
 
@@ -111,17 +193,20 @@ class _SchoolAttendanceScreenState extends State<SchoolAttendanceScreen> {
         ),
       );
 
-      await StaffAttendanceService.syncCheckOut(
+      final result = await StaffAttendanceService.markAttendance(
         schoolId: _selectedSchool!.id,
         staffId: record.staffId,
+        action: 'check-out',
         staffName: record.staffName,
       );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: Color(0xFF10B981),
-          content: Text("Check-out successful"),
+        SnackBar(
+          backgroundColor: result.isSuccess
+              ? const Color(0xFF10B981)
+              : const Color(0xFFE11D48),
+          content: Text(result.message),
         ),
       );
 
@@ -135,6 +220,224 @@ class _SchoolAttendanceScreenState extends State<SchoolAttendanceScreen> {
         ),
       );
     }
+  }
+
+  void _showManualMarkAttendanceDialog([StaffAttendanceModel? prefill]) {
+    if (_selectedSchool == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please select a school first")),
+      );
+      return;
+    }
+
+    final staffIdController =
+        TextEditingController(text: prefill?.staffId ?? '');
+    final nameController =
+        TextEditingController(text: prefill?.staffName ?? '');
+    final commentController =
+        TextEditingController(text: prefill?.comment ?? '');
+    String action =
+        (prefill != null && prefill.status == 'Checked In') ? 'check-out' : 'check-in';
+    bool isSubmitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFF7A00).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.how_to_reg, color: Color(0xFFFF7A00)),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Text(
+                              "Mark Staff Attendance",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1E293B),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      // Action Selector (Check-In vs Check-Out)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ChoiceChip(
+                              label: const Center(
+                                child: Text("Check-In", style: TextStyle(fontWeight: FontWeight.bold)),
+                              ),
+                              selected: action == 'check-in',
+                              selectedColor: const Color(0xFF10B981),
+                              labelStyle: TextStyle(
+                                color: action == 'check-in' ? Colors.white : const Color(0xFF1E293B),
+                              ),
+                              onSelected: (val) {
+                                if (val) setModalState(() => action = 'check-in');
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ChoiceChip(
+                              label: const Center(
+                                child: Text("Check-Out", style: TextStyle(fontWeight: FontWeight.bold)),
+                              ),
+                              selected: action == 'check-out',
+                              selectedColor: const Color(0xFF3B82F6),
+                              labelStyle: TextStyle(
+                                color: action == 'check-out' ? Colors.white : const Color(0xFF1E293B),
+                              ),
+                              onSelected: (val) {
+                                if (val) setModalState(() => action = 'check-out');
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: staffIdController,
+                        decoration: InputDecoration(
+                          labelText: "Staff ID *",
+                          hintText: "Enter Staff ID",
+                          prefixIcon: const Icon(Icons.badge_outlined),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: nameController,
+                        decoration: InputDecoration(
+                          labelText: "Staff Name (Optional)",
+                          hintText: "e.g. John Doe",
+                          prefixIcon: const Icon(Icons.person_outline),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: commentController,
+                        decoration: InputDecoration(
+                          labelText: "Comment (Optional)",
+                          hintText: "e.g. On time, Excused, Meeting",
+                          prefixIcon: const Icon(Icons.comment_outlined),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: action == 'check-in'
+                              ? const Color(0xFF10B981)
+                              : const Color(0xFF3B82F6),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: isSubmitting
+                            ? null
+                            : () async {
+                                final sId = staffIdController.text.trim();
+                                if (sId.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text("Staff ID is required")),
+                                  );
+                                  return;
+                                }
+
+                                setModalState(() => isSubmitting = true);
+                                final result = await StaffAttendanceService.markAttendance(
+                                  schoolId: _selectedSchool!.id,
+                                  staffId: sId,
+                                  action: action,
+                                  staffName: nameController.text.trim().isEmpty
+                                      ? null
+                                      : nameController.text.trim(),
+                                  comment: commentController.text.trim().isEmpty
+                                      ? null
+                                      : commentController.text.trim(),
+                                );
+
+                                if (!context.mounted) return;
+                                if (ctx.mounted) {
+                                  Navigator.pop(ctx);
+                                }
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    backgroundColor: result.isSuccess
+                                        ? (action == 'check-in'
+                                            ? const Color(0xFF10B981)
+                                            : const Color(0xFF3B82F6))
+                                        : const Color(0xFFE11D48),
+                                    content: Text(result.message),
+                                  ),
+                                );
+
+                                _loadAttendance(_selectedSchool!.id);
+                              },
+                        child: isSubmitting
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2),
+                              )
+                            : Text(
+                                action == 'check-in' ? "Mark Check-In" : "Mark Check-Out",
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   String _formatDate(DateTime dt) {
@@ -181,13 +484,19 @@ class _SchoolAttendanceScreenState extends State<SchoolAttendanceScreen> {
         ),
         centerTitle: false,
         actions: [
+          // Manual Mark Attendance Button
+          IconButton(
+            tooltip: "Mark Attendance Manually",
+            icon: const Icon(Icons.edit_note, color: Color(0xFFFF7A00)),
+            onPressed: () => _showManualMarkAttendanceDialog(),
+          ),
           // Refresh Button
           IconButton(
             tooltip: "Refresh Attendance",
             icon: const Icon(Icons.refresh, color: Color(0xFFFF7A00)),
             onPressed: () {
               if (_selectedSchool != null) {
-                _loadAttendance(_selectedSchool!.id);
+                _loadAttendance(_selectedSchool!.id, isRefresh: true);
               }
             },
           ),
@@ -244,7 +553,7 @@ class _SchoolAttendanceScreenState extends State<SchoolAttendanceScreen> {
       body: RefreshIndicator(
         onRefresh: () async {
           if (_selectedSchool != null) {
-            await _loadAttendance(_selectedSchool!.id);
+            await _loadAttendance(_selectedSchool!.id, isRefresh: true);
           }
         },
         child: ListView(
@@ -267,25 +576,94 @@ class _SchoolAttendanceScreenState extends State<SchoolAttendanceScreen> {
             _buildFilterChips(),
             const SizedBox(height: 16),
 
-            // Records List Header
+            // Records List Header with Date Controls
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  "Attendance Records (${_filteredRecords.length})",
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E293B),
+                Expanded(
+                  child: Text(
+                    "Attendance Records (${_filteredRecords.length})",
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E293B),
+                    ),
                   ),
                 ),
-                Text(
-                  _formatDate(_selectedDate),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF64748B),
-                  ),
+                // Quick Date Switcher Controls
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    InkWell(
+                      onTap: () => _changeDateBy(-1),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: const Icon(Icons.chevron_left, size: 18, color: Color(0xFF475569)),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    InkWell(
+                      onTap: _selectDate,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF7A00).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _formatDate(_selectedDate),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFFFF7A00),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    InkWell(
+                      onTap: () => _changeDateBy(1),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: const Icon(Icons.chevron_right, size: 18, color: Color(0xFF475569)),
+                      ),
+                    ),
+                    if (!_isToday) ...[
+                      const SizedBox(width: 4),
+                      InkWell(
+                        onTap: _resetToToday,
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            "Today",
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF10B981),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
@@ -366,25 +744,39 @@ class _SchoolAttendanceScreenState extends State<SchoolAttendanceScreen> {
                   ),
           ),
           const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.calendar_today, size: 14, color: Color(0xFF64748B)),
-                const SizedBox(width: 6),
-                Text(
-                  _formatDate(_selectedDate),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF334155),
-                  ),
+          InkWell(
+            onTap: _selectDate,
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: _isToday ? Colors.transparent : const Color(0xFFFF7A00).withValues(alpha: 0.5),
                 ),
-              ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.calendar_today,
+                    size: 14,
+                    color: _isToday ? const Color(0xFF64748B) : const Color(0xFFFF7A00),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    _isToday ? "Today" : _formatDate(_selectedDate),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: _isToday ? const Color(0xFF334155) : const Color(0xFFFF7A00),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.arrow_drop_down, size: 16, color: Color(0xFF64748B)),
+                ],
+              ),
             ),
           ),
         ],

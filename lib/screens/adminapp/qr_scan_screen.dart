@@ -110,10 +110,11 @@ class _QrScanScreenState extends State<QrScanScreen>
       if (rawData.startsWith('{') && rawData.endsWith('}')) {
         final Map<String, dynamic> json =
             Map<String, dynamic>.from(jsonDecode(rawData));
-        staffId = json['staffId'] ??
-            json['id'] ??
-            json['staff_id'] ??
-            json['code'] ??
+        staffId = json['userId']?.toString() ??
+            json['staffId']?.toString() ??
+            json['id']?.toString() ??
+            json['staff_id']?.toString() ??
+            json['code']?.toString() ??
             staffId;
         if (json['name'] != null) {
           staffName = json['name'].toString();
@@ -123,6 +124,8 @@ class _QrScanScreenState extends State<QrScanScreen>
           staffName = json['fullName'].toString();
         } else if (json['firstName'] != null) {
           staffName = "${json['firstName']} ${json['lastName'] ?? ''}".trim();
+        } else if (json['username'] != null) {
+          staffName = json['username'].toString();
         }
         department = json['department'] ??
             json['dept'] ??
@@ -131,9 +134,12 @@ class _QrScanScreenState extends State<QrScanScreen>
             json['designation'] ??
             json['title'] ??
             role;
-        profilePicture = json['profilePicture'] ??
-            json['avatar'] ??
-            json['photoUrl'];
+        profilePicture = json['profilePicture']?.toString() ??
+            json['avatar']?.toString() ??
+            json['photoUrl']?.toString() ??
+            json['photo']?.toString() ??
+            json['image']?.toString() ??
+            json['picture']?.toString();
       } else if (rawData.contains('staffId=') || rawData.contains('id=') || rawData.contains('name=')) {
         final uri = Uri.tryParse(rawData);
         if (uri != null) {
@@ -191,41 +197,34 @@ class _QrScanScreenState extends State<QrScanScreen>
 
     // Call Check-In or Check-Out API based on active mode
     final activeSchoolId = await StaffAttendanceService.getActiveSchoolId();
+    String verifiedStaffName = record.name;
     try {
-      if (_isCheckInMode) {
-        await StaffAttendanceService.syncCheckIn(
-          schoolId: activeSchoolId,
-          staffId: record.staffId,
-          staffName: record.name,
-          department: record.department,
-          role: record.role,
-          checkInTime: record.timestamp,
+      final action = _isCheckInMode ? 'check-in' : 'check-out';
+      final result = await StaffAttendanceService.markAttendance(
+        schoolId: activeSchoolId,
+        staffId: record.staffId,
+        action: action,
+        staffName: record.name,
+        department: record.department,
+        role: record.role,
+      );
+
+      if (result.staffName.isNotEmpty && result.staffName != 'Staff Member') {
+        verifiedStaffName = result.staffName;
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: result.isSuccess
+                ? (_isCheckInMode
+                    ? const Color(0xFF10B981)
+                    : const Color(0xFF3B82F6))
+                : const Color(0xFFEF4444),
+            content: Text(result.message),
+            duration: const Duration(seconds: 2),
+          ),
         );
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              backgroundColor: Color(0xFF10B981),
-              content: Text("Check-in successful"),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-      } else {
-        await StaffAttendanceService.syncCheckOut(
-          schoolId: activeSchoolId,
-          staffId: record.staffId,
-          staffName: record.name,
-          checkOutTime: record.timestamp,
-        );
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              backgroundColor: Color(0xFF3B82F6),
-              content: Text("Check-out successful"),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
       }
     } catch (e) {
       debugPrint("Attendance API sync error: $e");
@@ -234,13 +233,12 @@ class _QrScanScreenState extends State<QrScanScreen>
     if (!mounted) return;
 
     // Navigate to Staff Attendance Verify Successful Screen
-    if (!mounted) return;
     await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (_) => StaffAttendanceSuccessScreen(
           staffId: record.staffId,
-          staffName: record.name,
+          staffName: verifiedStaffName,
           department: record.department,
           role: record.role,
           profilePicture: record.profilePicture,

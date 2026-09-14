@@ -18,11 +18,11 @@ flutter test
 ### Run build
 
 ```bash
-flutter build apk --release --obfuscate --split-debug-info=symbols/1.0.0+4
+flutter build apk --release --obfuscate --split-debug-info=symbols/1.0.0+7
 ```
 
 ```bash
-flutter build appbundle --release --obfuscate --split-debug-info=symbols/1.0.0+4
+flutter build appbundle --release --obfuscate --split-debug-info=symbols/1.0.0+7
 ```
 
 ## Audit Checklist

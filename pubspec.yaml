@@ -4,7 +4,7 @@ description: "ZED School AI for school owners and admins."
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
-version: 1.0.0+4
+version: 1.0.0+7
 
 environment:
   sdk: ^3.11.0-296.4.beta
@@ -30,6 +30,7 @@ dependencies:
   url_launcher: ^6.2.2
   google_mobile_ads: ^5.2.0
   mobile_scanner: ^5.2.3
+  connectivity_plus: ^7.3.1
   # flutter_launcher_icons: ^0.14.4
 
 dev_dependencies:

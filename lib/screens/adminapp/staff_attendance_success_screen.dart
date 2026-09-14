@@ -34,20 +34,20 @@ class _StaffAttendanceSuccessScreenState
     extends State<StaffAttendanceSuccessScreen>
     with SingleTickerProviderStateMixin {
   Timer? _countdownTimer;
-  int _secondsRemaining = 2;
+  int _secondsRemaining = 3;
   late AnimationController _progressController;
 
   @override
   void initState() {
     super.initState();
 
-    // 2-second countdown controller for smooth visual progress bar
+    // 3-second countdown controller for smooth visual progress bar
     _progressController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 2),
+      duration: const Duration(seconds: 3),
     )..forward();
 
-    // Auto-return to QR Code Scanning after 2 seconds
+    // Auto-return to QR Code Scanning after 3 seconds
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
       setState(() {

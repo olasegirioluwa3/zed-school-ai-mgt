@@ -10,9 +10,11 @@ class ApiConfig {
   static const String loginEndpoint = '/api/auth/login';
   
   // Staff Attendance Endpoints
-  static const String staffCheckInEndpoint = '/api/v2/user/schoolstaffattendance/sync-checkin';
-  static const String staffCheckOutEndpoint = '/api/v2/user/schoolstaffattendance/sync-checkout';
+  static const String staffAttendanceEndpoint = '/api/v2/user/schoolstaffattendance/';
+  static const String staffCheckInEndpoint = '/api/v2/user/schoolstaffattendance/';
+  static const String staffCheckOutEndpoint = '/api/v2/user/schoolstaffattendance/';
   static const String staffTodayAttendanceEndpoint = '/api/v2/user/schoolstaffattendance/today';
+  static const String staffAttendanceByDateEndpoint = '/api/v2/user/schoolstaffattendance/by-date';
   
   // Request timeout in seconds
   static const int requestTimeout = 30;

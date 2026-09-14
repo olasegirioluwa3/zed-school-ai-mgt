@@ -12,6 +12,7 @@ class StaffAttendanceModel {
   final String punctuality;
   final String attendanceType;
   final String status;
+  final String? comment;
 
   StaffAttendanceModel({
     required this.id,
@@ -27,6 +28,7 @@ class StaffAttendanceModel {
     this.punctuality = 'On Time',
     this.attendanceType = 'QR ID Scan',
     this.status = 'Checked In',
+    this.comment,
   });
 
   bool get isCheckedOut => checkOutTime != null;
@@ -71,7 +73,11 @@ class StaffAttendanceModel {
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
-  factory StaffAttendanceModel.fromJson(Map<String, dynamic> json) {
+  factory StaffAttendanceModel.fromJson(
+    Map<String, dynamic> json, {
+    String? defaultStaffName,
+    String? defaultStaffId,
+  }) {
     DateTime? parseDate(dynamic val) {
       if (val == null) return null;
       if (val is DateTime) return val;
@@ -82,8 +88,39 @@ class StaffAttendanceModel {
     final checkOut = parseDate(json['checkOutTime'] ?? json['checkOut']);
     final dateParsed = parseDate(json['date'] ?? json['createdAt']) ?? checkIn ?? DateTime.now();
 
+    // Extract staffId & staffName (which can be a String or a nested Map)
+    String parsedStaffId = defaultStaffId ?? '';
+    String parsedStaffName = defaultStaffName ?? '';
+
+    final rawStaffId = json['staffId'] ?? json['staff_id'];
+    if (rawStaffId is Map) {
+      final idVal = rawStaffId['_id'] ?? rawStaffId['id'];
+      if (idVal != null && idVal.toString().isNotEmpty) {
+        parsedStaffId = idVal.toString();
+      }
+      final firstName = rawStaffId['firstName']?.toString() ?? '';
+      final lastName = rawStaffId['lastName']?.toString() ?? '';
+      final fullName = '$firstName $lastName'.trim();
+      if (fullName.isNotEmpty && parsedStaffName.isEmpty) {
+        parsedStaffName = fullName;
+      }
+    } else if (rawStaffId != null) {
+      parsedStaffId = rawStaffId.toString();
+    }
+
+    if (parsedStaffName.isEmpty) {
+      parsedStaffName = json['staffName']?.toString() ??
+          json['name']?.toString() ??
+          json['fullName']?.toString() ??
+          'Staff Member';
+    }
+
     // Determine punctuality
-    String punct = json['punctuality'] ?? '';
+    String punct = json['punctuality']?.toString() ?? '';
+    final commentVal = json['comment']?.toString();
+    if (punct.isEmpty && commentVal != null && commentVal.isNotEmpty) {
+      punct = commentVal;
+    }
     if (punct.isEmpty && checkIn != null) {
       final local = checkIn.toLocal();
       punct = (local.hour < 8 || (local.hour == 8 && local.minute <= 30))
@@ -94,28 +131,61 @@ class StaffAttendanceModel {
     }
 
     // Determine status
-    String stat = json['status'] ?? '';
+    String stat = json['status']?.toString() ?? '';
     if (stat.isEmpty) {
       stat = checkOut != null ? 'Checked Out' : 'Checked In';
     }
 
+    String parsedDepartment = json['department']?.toString() ?? json['dept']?.toString() ?? '';
+    if (parsedDepartment.isEmpty && rawStaffId is Map) {
+      parsedDepartment = rawStaffId['department']?.toString() ?? rawStaffId['dept']?.toString() ?? '';
+    }
+    if (parsedDepartment.isEmpty) {
+      parsedDepartment = 'General Staff';
+    }
+
+    String parsedRole = json['role']?.toString() ?? json['designation']?.toString() ?? '';
+    if (parsedRole.isEmpty && rawStaffId is Map) {
+      parsedRole = rawStaffId['role']?.toString() ?? rawStaffId['designation']?.toString() ?? '';
+    }
+    if (parsedRole.isEmpty) {
+      parsedRole = 'Staff Member';
+    }
+
+    // Parse markedBy (can be a nested Map from API or a String)
+    String parsedMarkedBy = '';
+    final rawMarkedBy = json['markedBy'];
+    if (rawMarkedBy is Map) {
+      final fName = rawMarkedBy['firstName']?.toString() ?? '';
+      final lName = rawMarkedBy['lastName']?.toString() ?? '';
+      final fullName = '$fName $lName'.trim();
+      if (fullName.isNotEmpty) {
+        parsedMarkedBy = fullName;
+      } else {
+        parsedMarkedBy = rawMarkedBy['name']?.toString() ??
+            rawMarkedBy['email']?.toString() ??
+            rawMarkedBy['_id']?.toString() ??
+            '';
+      }
+    } else if (rawMarkedBy != null) {
+      parsedMarkedBy = rawMarkedBy.toString();
+    }
+
     return StaffAttendanceModel(
       id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
-      staffId: json['staffId']?.toString() ?? json['staff_id']?.toString() ?? '',
-      staffName: json['staffName']?.toString() ??
-          json['name']?.toString() ??
-          json['fullName']?.toString() ??
-          'Staff Member',
-      department: json['department']?.toString() ?? json['dept']?.toString() ?? 'General Staff',
-      role: json['role']?.toString() ?? json['designation']?.toString() ?? 'Staff Member',
+      staffId: parsedStaffId,
+      staffName: parsedStaffName,
+      department: parsedDepartment,
+      role: parsedRole,
       schoolId: json['schoolId']?.toString() ?? '',
-      markedBy: json['markedBy']?.toString() ?? '',
+      markedBy: parsedMarkedBy,
       checkInTime: checkIn,
       checkOutTime: checkOut,
       date: dateParsed,
       punctuality: punct,
       attendanceType: json['attendanceType'] ?? json['type'] ?? 'QR ID Scan',
       status: stat,
+      comment: commentVal,
     );
   }
 
@@ -134,6 +204,7 @@ class StaffAttendanceModel {
       'punctuality': punctuality,
       'attendanceType': attendanceType,
       'status': status,
+      if (comment != null) 'comment': comment,
     };
   }
 
@@ -151,6 +222,7 @@ class StaffAttendanceModel {
     String? punctuality,
     String? attendanceType,
     String? status,
+    String? comment,
   }) {
     return StaffAttendanceModel(
       id: id ?? this.id,
@@ -166,6 +238,55 @@ class StaffAttendanceModel {
       punctuality: punctuality ?? this.punctuality,
       attendanceType: attendanceType ?? this.attendanceType,
       status: status ?? this.status,
+      comment: comment ?? this.comment,
+    );
+  }
+}
+
+/// Result returned from the Mark Attendance API endpoint:
+/// POST /api/v2/user/schoolstaffattendance/
+class MarkAttendanceResult {
+  final bool isSuccess;
+  final String message;
+  final String staffName;
+  final StaffAttendanceModel? attendance;
+  final String? errorMessage;
+  final int? statusCode;
+
+  const MarkAttendanceResult({
+    required this.isSuccess,
+    required this.message,
+    this.staffName = '',
+    this.attendance,
+    this.errorMessage,
+    this.statusCode,
+  });
+
+  factory MarkAttendanceResult.success({
+    required String message,
+    required String staffName,
+    StaffAttendanceModel? attendance,
+    int statusCode = 200,
+  }) {
+    return MarkAttendanceResult(
+      isSuccess: true,
+      message: message,
+      staffName: staffName,
+      attendance: attendance,
+      statusCode: statusCode,
+    );
+  }
+
+  factory MarkAttendanceResult.failure({
+    required String message,
+    String? errorMessage,
+    int? statusCode,
+  }) {
+    return MarkAttendanceResult(
+      isSuccess: false,
+      message: message,
+      errorMessage: errorMessage ?? message,
+      statusCode: statusCode,
     );
   }
 }
