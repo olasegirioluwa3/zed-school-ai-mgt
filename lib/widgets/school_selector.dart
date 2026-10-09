@@ -5,12 +5,14 @@ class SchoolSelector extends StatefulWidget {
   final School? currentSchool;
   final List<School> availableSchools;
   final Function(School) onSchoolSelected;
+  final VoidCallback? onCreateSchool;
 
   const SchoolSelector({
     super.key,
     this.currentSchool,
     required this.availableSchools,
     required this.onSchoolSelected,
+    this.onCreateSchool,
   });
 
   @override
@@ -23,10 +25,10 @@ class _SchoolSelectorState extends State<SchoolSelector> {
     final schoolName = widget.currentSchool?.name ??
         (widget.availableSchools.isNotEmpty
             ? widget.availableSchools.first.name
-            : 'Select School');
+            : 'Create School');
 
     return GestureDetector(
-      onTap: widget.availableSchools.isNotEmpty ? _showSchoolDropdown : null,
+      onTap: _showSchoolDropdown,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
@@ -107,19 +109,78 @@ class _SchoolSelectorState extends State<SchoolSelector> {
               ),
             ),
             const SizedBox(height: 16),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 400),
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: widget.availableSchools.length,
-                itemBuilder: (context, index) {
-                  final school = widget.availableSchools[index];
-                  final isSelected = school.id == widget.currentSchool?.id;
-                  return _buildSchoolItem(school, isSelected);
-                },
+            if (widget.availableSchools.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+                child: Text(
+                  'No schools available',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              )
+            else
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 400),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: widget.availableSchools.length,
+                  itemBuilder: (context, index) {
+                    final school = widget.availableSchools[index];
+                    final isSelected = school.id == widget.currentSchool?.id;
+                    return _buildSchoolItem(school, isSelected);
+                  },
+                ),
+              ),
+            if (widget.onCreateSchool != null) ...[
+              const SizedBox(height: 8),
+              const Divider(),
+              const SizedBox(height: 8),
+              _buildCreateSchoolButton(),
+            ],
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCreateSchoolButton() {
+    return GestureDetector(
+      onTap: () {
+        Navigator.pop(context);
+        widget.onCreateSchool?.call();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF8C42).withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.add,
+                color: Color(0xFFFF8C42),
+                size: 20,
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Create School',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFFFF8C42),
+                ),
+              ),
+            ),
           ],
         ),
       ),

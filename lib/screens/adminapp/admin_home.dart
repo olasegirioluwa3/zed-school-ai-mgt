@@ -10,7 +10,11 @@ import '../../widgets/advert_slider.dart';
 
 import 'school_attendance_screen.dart';
 import 'qr_scan_screen.dart';
+import 'all_classes_screen.dart';
+import 'results_screen.dart';
+import 'schoolpayment_screen.dart';
 import '../ai_home/ai_home_screen.dart';
+import 'zed_notifications_popup.dart';
 
 class StaffHomeScreen extends StatefulWidget {
   const StaffHomeScreen({super.key});
@@ -30,6 +34,13 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
     super.initState();
     _loadUser();
     _loadSchools();
+    
+    // Show ZED Subscription notification popup after a delay
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        _showZedSubscriptionPopup();
+      }
+    });
   }
 
   Future<void> _loadUser() async {
@@ -84,6 +95,14 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
     setState(() => selectedSchool = school);
   }
 
+  void _showZedSubscriptionPopup() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => const ZedNotificationsPopup(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -113,7 +132,7 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
       children: [
         CircleAvatar(
           radius: 20,
-          backgroundColor: const Color(0xFFFF7A00).withValues(alpha: 0.15),
+          backgroundColor: Color(0xFFFF7A00).withValues(alpha: 0.15),
           backgroundImage:
               (user?.profilePicture != null && user!.profilePicture!.isNotEmpty)
                   ? NetworkImage(user!.profilePicture!)
@@ -143,7 +162,7 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-              color: const Color(0xFFFF7A00).withValues(alpha: 0.1),
+              color: Color(0xFFFF7A00).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20)),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -252,14 +271,22 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
         _card(
           "Class Result",
           Icons.person_outline,
-          () => _showComingSoon("Class Result"),
-          isComingSoon: true,
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const AllClassesScreen(),
+            ),
+          ),
         ),
         _card(
           "Result",
           Icons.check_circle_outline,
-          () => _showComingSoon("Results"),
-          isComingSoon: true,
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const ResultsScreen(),
+            ),
+          ),
         ),
         _card(
           "School\nAttendance",
@@ -274,8 +301,12 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
         _card(
           "Payment",
           Icons.credit_card,
-          () => _showComingSoon("Payment"),
-          isComingSoon: true,
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const SchoolPaymentScreen(),
+            ),
+          ),
         ),
       ],
     );

@@ -85,5 +85,17 @@
 	<string>ca-app-pub-6710188887500528~9017649547</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Camera access is needed to scan QR codes.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- Replace with your REVERSED_CLIENT_ID from Google Cloud Console -->
+				<string>com.googleusercontent.apps.852974895524-mog1f8v0uc01mfe1ovscnmbs076fgh3e</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

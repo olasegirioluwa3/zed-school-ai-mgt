@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../ai_home/ai_home_screen.dart';
 import '../../services/school_service.dart';
 import '../../services/auth_service.dart';
+import '../../services/google_auth_service.dart';
 import '../../models/zed/zed_api_exception.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -30,13 +31,16 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _contactController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final AuthService _authService = AuthServiceImpl();
+  final GoogleAuthService _googleAuthService = GoogleAuthService();
   bool _isLoading = false;
+  bool _isGoogleLoading = false;
 
   @override
   void dispose() {
     _contactController.dispose();
     _passwordController.dispose();
     _authService.dispose();
+    _googleAuthService.dispose();
     super.dispose();
   }
 
@@ -67,6 +71,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 _buildPasswordInput(),
                 const SizedBox(height: 24),
                 _buildLoginButton(),
+                const SizedBox(height: 16),
+                _buildGoogleSignInButton(),
+                const SizedBox(height: 16),
+                _buildContinueButton(),
                 const Spacer(flex: 3),
               ],
             ),
@@ -82,27 +90,31 @@ class _LoginScreenState extends State<LoginScreen> {
       children: [
         _buildLogoIcon(),
         const SizedBox(width: spacing),
-        _buildLogoText(),
+        Flexible(
+          child: _buildLogoText(),
+        ),
       ],
     );
   }
 
   Widget _buildLogoIcon() {
     return Image.asset(
-      'assets/zedai.png',
+      'assets/images/zedai.png',
       width: 60,
       height: 60,
     );
   }
 
   Widget _buildLogoText() {
-    return const Text(
-      'ZED',
-      style: TextStyle(
-        fontSize: fontSize,
-        fontWeight: FontWeight.bold,
-        color: logoColor,
-        letterSpacing: 2,
+    return const FittedBox(
+      child: Text(
+        'ZED',
+        style: TextStyle(
+          fontSize: fontSize,
+          fontWeight: FontWeight.bold,
+          color: logoColor,
+          letterSpacing: 2,
+        ),
       ),
     );
   }
@@ -205,7 +217,82 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Continue button removed as per requirements
+  Widget _buildContinueButton() {
+    return SizedBox(
+      height: buttonHeight,
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: _handleContinue,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: buttonColor,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(inputBorderRadius),
+          ),
+          elevation: 0,
+        ),
+        child: const Text(
+          'Continue',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGoogleSignInButton() {
+    return SizedBox(
+      height: buttonHeight,
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: _isGoogleLoading ? null : _handleGoogleSignIn,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black87,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(inputBorderRadius),
+          ),
+          elevation: 2,
+        ),
+        child: _isGoogleLoading
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.black87),
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Google logo image
+                  Image.asset(
+                    'assets/images/googlelogo.png',
+                    width: 24,
+                    height: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Continue with Google',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  Future<void> _handleContinue() async {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (context) => const AiHomeScreen()),
+    );
+  }
 
   Future<void> _handleLogin() async {
     final contact = _contactController.text.trim();
@@ -257,6 +344,46 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Login failed. Please try again.')),
+      );
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() {
+      _isGoogleLoading = true;
+    });
+
+    try {
+      await _googleAuthService.signInWithGoogle();
+
+      // After successful Google Sign-In, fetch schools and navigate to AI chat page
+      await SchoolService().fetchSchools();
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const AiHomeScreen()),
+        );
+      }
+    } on ZedApiException catch (e) {
+      setState(() {
+        _isGoogleLoading = false;
+      });
+      if (!mounted) return;
+      
+      // Don't show error for user cancellation
+      if (e.message.contains('cancelled')) {
+        return;
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } catch (e) {
+      setState(() {
+        _isGoogleLoading = false;
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Google Sign-In failed: ${e.toString()}')),
       );
     }
   }

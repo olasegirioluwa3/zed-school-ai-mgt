@@ -77,7 +77,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Widget _buildLogoIcon() {
     return Image.asset(
-      'assets/zedai.png',
+      'assets/images/zedai.png',
       width: 60,
       height: 60,
     );

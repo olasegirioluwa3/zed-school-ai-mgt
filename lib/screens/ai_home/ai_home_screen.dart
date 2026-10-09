@@ -18,9 +18,12 @@ import '../../widgets/chat/suggestion_chip.dart';
 import '../adminapp/admin_home.dart';
 import '../adminapp/school_attendance_screen.dart';
 import '../adminapp/qr_scan_screen.dart';
+import '../help_screen.dart';
 
 class AiHomeScreen extends StatefulWidget {
-  const AiHomeScreen({super.key});
+  final String? initialPrompt;
+
+  const AiHomeScreen({super.key, this.initialPrompt});
 
   @override
   State<AiHomeScreen> createState() => _AiHomeScreenState();
@@ -56,6 +59,9 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialPrompt != null && widget.initialPrompt!.isNotEmpty) {
+      _questionController.text = widget.initialPrompt!;
+    }
     _initializeData();
   }
 
@@ -201,6 +207,7 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
                       currentSchool: _currentSchool,
                       availableSchools: _schoolService.getAvailableSchools(),
                       onSchoolSelected: _handleSchoolSelected,
+                      onCreateSchool: _handleCreateSchool,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -741,9 +748,11 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
 
   void _handleHelp() {
     Navigator.of(context).pop();
-    // TODO: Navigate to help screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Help coming soon')),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const HelpScreen(),
+      ),
     );
   }
 
@@ -752,6 +761,20 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => const StaffHomeScreen(),
+      ),
+    );
+  }
+
+  void _handleCreateSchool() {
+    showDialog(
+      context: context,
+      builder: (context) => CreateSchoolDialog(
+        onSchoolCreated: () async {
+          await _schoolService.fetchSchools();
+          setState(() {
+            _currentSchool = _schoolService.getSelectedSchool();
+          });
+        },
       ),
     );
   }
@@ -790,5 +813,722 @@ class _Dot extends StatelessWidget {
         shape: BoxShape.circle,
       ),
     );
+  }
+}
+
+class CreateSchoolDialog extends StatefulWidget {
+  final VoidCallback? onSchoolCreated;
+
+  const CreateSchoolDialog({super.key, this.onSchoolCreated});
+
+  @override
+  State<CreateSchoolDialog> createState() => _CreateSchoolDialogState();
+}
+
+class _CreateSchoolDialogState extends State<CreateSchoolDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _schoolNameController = TextEditingController();
+  final _addressController = TextEditingController();
+  final _userEmailController = TextEditingController();
+  final _schoolEmailController = TextEditingController();
+  final _phoneNumberController = TextEditingController();
+  final _websiteController = TextEditingController();
+  String? _selectedSchoolType;
+  DateTime? _foundedDate;
+  final List<BankDetail> _bankDetails = [BankDetail()];
+  bool _isLoading = false;
+  String? _errorMessage;
+  
+  final List<String> _schoolTypes = [
+    'Primary School',
+    'Secondary School',
+    'Primary & Secondary',
+    'University',
+    'College',
+    'Vocational School',
+    'Other',
+  ];
+
+  // School type IDs - these should match your backend school type IDs
+  // Using fallback to use the school type name if specific IDs aren't available
+  final Map<String, String> _schoolTypeIds = {
+    'Primary School': 'primary',
+    'Secondary School': 'secondary', 
+    'Primary & Secondary': 'primary_secondary',
+    'University': 'university',
+    'College': 'college',
+    'Vocational School': 'vocational',
+    'Other': 'other',
+  };
+
+  @override
+  void dispose() {
+    _schoolNameController.dispose();
+    _addressController.dispose();
+    _userEmailController.dispose();
+    _schoolEmailController.dispose();
+    _phoneNumberController.dispose();
+    _websiteController.dispose();
+    for (var bankDetail in _bankDetails) {
+      bankDetail.accountNameController.dispose();
+      bankDetail.accountNumberController.dispose();
+      bankDetail.bankNameController.dispose();
+      bankDetail.routingNumberController.dispose();
+      bankDetail.swiftCodeController.dispose();
+    }
+    super.dispose();
+  }
+
+  void _addBankDetail() {
+    setState(() {
+      _bankDetails.add(BankDetail());
+    });
+  }
+
+  void _removeBankDetail(int index) {
+    if (_bankDetails.length > 1) {
+      setState(() {
+        _bankDetails.removeAt(index);
+      });
+    }
+  }
+
+  Future<void> _selectDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) {
+      setState(() {
+        _foundedDate = picked;
+      });
+    }
+  }
+
+  void _submitForm() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
+      // Check for duplicate schools
+      try {
+        final existingSchools = await SchoolService.getMySchools();
+        final isDuplicate = existingSchools.any((school) {
+          final schoolName = school['name'] as String? ?? '';
+          final schoolAddress = school['address'] is Map 
+              ? (school['address'] as Map)['address_line1'] as String? ?? ''
+              : '';
+          return schoolName.toLowerCase() == _schoolNameController.text.toLowerCase() &&
+                 schoolAddress.toLowerCase() == _addressController.text.toLowerCase();
+        });
+
+        if (isDuplicate) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = 'School already added.';
+          });
+          return;
+        }
+
+        // Prepare bank details
+        final bankDetailsData = _bankDetails.map((bankDetail) {
+          return {
+            'accountName': bankDetail.accountNameController.text,
+            'accountNumber': bankDetail.accountNumberController.text,
+            'bankName': bankDetail.bankNameController.text,
+            if (bankDetail.routingNumberController.text.isNotEmpty)
+              'routingNumber': bankDetail.routingNumberController.text,
+            if (bankDetail.swiftCodeController.text.isNotEmpty)
+              'swiftCode': bankDetail.swiftCodeController.text,
+          };
+        }).toList();
+
+        // Format founded date
+        String formattedDate = '';
+        if (_foundedDate != null) {
+          formattedDate = '${_foundedDate!.year}-${_foundedDate!.month.toString().padLeft(2, '0')}-${_foundedDate!.day.toString().padLeft(2, '0')}';
+        }
+
+        // Get school type ID - use the type name as fallback if specific ID not available
+        final schoolTypeId = _schoolTypeIds[_selectedSchoolType] ?? _selectedSchoolType ?? 'other';
+
+        // Call API
+        await SchoolService.createSchool(
+          name: _schoolNameController.text,
+          address: _addressController.text,
+          phoneNumber: _phoneNumberController.text,
+          email: _schoolEmailController.text,
+          website: _websiteController.text,
+          foundedDate: formattedDate,
+          schoolTypeId: schoolTypeId,
+          bankDetails: bankDetailsData,
+        );
+
+        if (mounted) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('School created successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          
+          // Notify parent to refresh schools
+          widget.onSchoolCreated?.call();
+        }
+      } on ZedApiException catch (e) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = e.message;
+        });
+      } catch (e) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'An error occurred while creating the school. Please try again.';
+        });
+        debugPrint('Error creating school: $e');
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 800),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(32),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Create School',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E293B),
+                      ),
+                    ),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF4F4F4),
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.close, color: Color(0xFF1E293B)),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Fill in the details below to create a new school',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey,
+                  ),
+                ),
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error, color: Colors.red, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _errorMessage!,
+                            style: const TextStyle(
+                              color: Colors.red,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 32),
+                
+                // School Name
+                _buildTextField(
+                  label: 'School Name',
+                  hint: 'Enter Your School Name',
+                  controller: _schoolNameController,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter school name';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                
+                // Address
+                _buildTextField(
+                  label: 'Address',
+                  hint: 'Enter Your School Address',
+                  controller: _addressController,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter address';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                
+                // User Email
+                _buildTextField(
+                  label: 'User Email',
+                  hint: 'Enter Your Valid Email',
+                  controller: _userEmailController,
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter user email';
+                    }
+                    if (!value.contains('@')) {
+                      return 'Please enter a valid email';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                
+                // School Email
+                _buildTextField(
+                  label: 'School Email',
+                  hint: 'Enter Your School Email',
+                  controller: _schoolEmailController,
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter school email';
+                    }
+                    if (!value.contains('@')) {
+                      return 'Please enter a valid email';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                
+                // Phone Number
+                _buildTextField(
+                  label: 'Phone Number',
+                  hint: 'Enter Your School Valid Phone Number',
+                  controller: _phoneNumberController,
+                  keyboardType: TextInputType.phone,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter phone number';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                
+                // School Type
+                _buildDropdown(
+                  label: 'School Type',
+                  hint: 'Select a school type',
+                  value: _selectedSchoolType,
+                  items: _schoolTypes,
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedSchoolType = value;
+                    });
+                  },
+                  validator: (value) {
+                    if (value == null) {
+                      return 'Please select school type';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                
+                // Website
+                _buildTextField(
+                  label: 'Website',
+                  hint: 'Optional',
+                  controller: _websiteController,
+                  keyboardType: TextInputType.url,
+                ),
+                const SizedBox(height: 16),
+                
+                // Founded Date
+                _buildDatePicker(
+                  label: 'Founded Date',
+                  hint: 'dd/mm/yyyy',
+                  selectedDate: _foundedDate,
+                  onTap: _selectDate,
+                ),
+                const SizedBox(height: 24),
+                
+                // Bank Details Section
+                const Text(
+                  'Bank Details',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF9FAFB),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    children: [
+                      ..._bankDetails.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final bankDetail = entry.value;
+                        return _buildBankDetailCard(bankDetail, index);
+                      }),
+                      const SizedBox(height: 12),
+                      // Add Another Bank Button
+                      OutlinedButton.icon(
+                        onPressed: _addBankDetail,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add Another Bank'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFFF8C42),
+                          side: const BorderSide(color: Color(0xFFFF8C42)),
+                          minimumSize: const Size(double.infinity, 48),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 24),
+                
+                // Submit Button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _submitForm,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF8C42),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      disabledBackgroundColor: Colors.grey,
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Text(
+                            'Create School',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required String label,
+    required String hint,
+    required TextEditingController controller,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF1E293B),
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          validator: validator,
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
+            filled: true,
+            fillColor: const Color(0xFFF9FAFB),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFFF8C42), width: 2),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.red, width: 1),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDropdown({
+    required String label,
+    required String hint,
+    required String? value,
+    required List<String> items,
+    required void Function(String?) onChanged,
+    String? Function(String?)? validator,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF1E293B),
+          ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          initialValue: value,
+          hint: Text(hint, style: const TextStyle(color: Colors.grey, fontSize: 14)),
+          items: items.map((String item) {
+            return DropdownMenuItem<String>(
+              value: item,
+              child: Text(item, style: const TextStyle(fontSize: 14)),
+            );
+          }).toList(),
+          onChanged: onChanged,
+          validator: validator,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: const Color(0xFFF9FAFB),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFFF8C42), width: 2),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.red, width: 1),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDatePicker({
+    required String label,
+    required String hint,
+    required DateTime? selectedDate,
+    required VoidCallback onTap,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF1E293B),
+          ),
+        ),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF9FAFB),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Text(
+                  selectedDate != null
+                      ? '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}'
+                      : hint,
+                  style: TextStyle(
+                    color: selectedDate != null
+                        ? const Color(0xFF1E293B)
+                        : Colors.grey,
+                    fontSize: 14,
+                  ),
+                ),
+                const Spacer(),
+                const Icon(Icons.calendar_today, color: Color(0xFF1E293B), size: 20),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBankDetailCard(BankDetail bankDetail, int index) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Bank ${index + 1}',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E293B),
+                ),
+              ),
+              if (_bankDetails.length > 1)
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red, size: 18),
+                    onPressed: () => _removeBankDetail(index),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildTextField(
+            label: 'Account Name',
+            hint: 'Enter Account Name',
+            controller: bankDetail.accountNameController,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter account name';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 12),
+          _buildTextField(
+            label: 'Account Number',
+            hint: 'Enter Account Number',
+            controller: bankDetail.accountNumberController,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter account number';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 12),
+          _buildTextField(
+            label: 'Bank Name',
+            hint: 'Enter Bank Name',
+            controller: bankDetail.bankNameController,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter bank name';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 12),
+          _buildTextField(
+            label: 'Routing Number',
+            hint: 'Optional',
+            controller: bankDetail.routingNumberController,
+          ),
+          const SizedBox(height: 12),
+          _buildTextField(
+            label: 'Swift Code',
+            hint: 'Optional',
+            controller: bankDetail.swiftCodeController,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class BankDetail {
+  late TextEditingController accountNameController;
+  late TextEditingController accountNumberController;
+  late TextEditingController bankNameController;
+  late TextEditingController routingNumberController;
+  late TextEditingController swiftCodeController;
+
+  BankDetail() {
+    accountNameController = TextEditingController();
+    accountNumberController = TextEditingController();
+    bankNameController = TextEditingController();
+    routingNumberController = TextEditingController();
+    swiftCodeController = TextEditingController();
   }
 }

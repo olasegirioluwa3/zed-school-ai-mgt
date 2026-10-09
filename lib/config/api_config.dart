@@ -7,6 +7,7 @@ class ApiConfig {
   static const String chatEndpoint = '/api/v2/user/zedai/chat';
   static const String conversationsEndpoint = '/api/v2/user/zedai/conversations';
   static const String schoolsEndpoint = '/api/v2/user/school/i-have-access';
+  static const String createSchoolEndpoint = '/api/v2/user/school/create';
   static const String loginEndpoint = '/api/auth/login';
   
   // Staff Attendance Endpoints
@@ -31,5 +32,15 @@ class ApiConfig {
   // Set current logged-in user
   static void setCurrentUser(dynamic user) {
     currentUser = user;
+  }
+
+  // Clear authentication token
+  static void clearAuthToken() {
+    authToken = '';
+  }
+
+  // Clear current user
+  static void clearCurrentUser() {
+    currentUser = null;
   }
 }

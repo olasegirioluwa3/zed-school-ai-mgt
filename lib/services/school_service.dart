@@ -233,4 +233,80 @@ class SchoolService {
       return [];
     }
   }
+
+  /// Create a new school
+  static Future<Map<String, dynamic>> createSchool({
+    required String name,
+    required String address,
+    required String phoneNumber,
+    required String email,
+    required String website,
+    required String foundedDate,
+    required String schoolTypeId,
+    required List<Map<String, dynamic>> bankDetails,
+  }) async {
+    try {
+      final url = Uri.parse('${ApiConfig.zedAiBaseUrl}${ApiConfig.createSchoolEndpoint}');
+      
+      final headers = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (ApiConfig.authToken.isNotEmpty) {
+        headers['Authorization'] = 'Bearer ${ApiConfig.authToken}';
+      }
+
+      final body = jsonEncode({
+        'name': name,
+        'address': {
+          'address_line1': address,
+        },
+        'phoneNumber': phoneNumber,
+        'email': email,
+        'website': website,
+        'foundedDate': foundedDate,
+        'schoolTypeId': schoolTypeId,
+        'role': 'admin',
+        'bankDetails': bankDetails,
+      });
+      
+      debugPrint('=== Create School Request ===');
+      debugPrint('URL: $url');
+      debugPrint('Method: POST');
+      debugPrint('Headers: $headers');
+      debugPrint('Body: $body');
+      debugPrint('======================');
+      
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: body,
+      ).timeout(
+        const Duration(seconds: ApiConfig.requestTimeout),
+      );
+
+      final decoded = jsonDecode(response.body);
+
+      debugPrint('=== Create School Response ===');
+      debugPrint('Status code: ${response.statusCode}');
+      debugPrint('Body: $decoded');
+      debugPrint('======================');
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return decoded as Map<String, dynamic>;
+      } else {
+        throw ZedApiException(
+          decoded['message'] as String? ?? 'Failed to create school',
+          statusCode: response.statusCode,
+        );
+      }
+    } on http.ClientException catch (e) {
+      debugPrint('Network error creating school: ${e.message}');
+      throw ZedApiException('Network error: ${e.message}');
+    } catch (e) {
+      debugPrint('Error creating school: $e');
+      if (e is ZedApiException) rethrow;
+      throw ZedApiException('Failed to create school: ${e.toString()}');
+    }
+  }
 }

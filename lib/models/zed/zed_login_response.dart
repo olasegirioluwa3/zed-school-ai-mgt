@@ -45,6 +45,24 @@ class ZedUser {
       walletId: json['walletId'] as String?,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '_id': id,
+      'id': id,
+      'email': email,
+      'firstName': firstName,
+      'lastName': lastName,
+      'username': username,
+      'profilePicture': profilePicture,
+      'coverPicture': coverPicture,
+      'dateOfBirth': dateOfBirth,
+      'gender': gender,
+      'role': role,
+      'status': status,
+      'walletId': walletId,
+    };
+  }
 }
 
 class ZedLoginResponse {
